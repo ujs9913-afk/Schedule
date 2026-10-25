@@ -2,26 +2,81 @@
 <html lang="ko">
 <head>
     <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>스마트 근무 스케줄러 (통합 신청관리 & 주간자동배정)</title>
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=5.0, viewport-fit=cover">
+    <title>스마트 근무 스케줄러 (전 기기 반응형 완벽 대응)</title>
     <script src="https://cdn.tailwindcss.com"></script>
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=Noto+Sans+KR:wght@400;500;700&display=swap" rel="stylesheet">
     <style>
-        body { font-family: 'Noto Sans KR', 'Inter', sans-serif; background-color: #1e293b; margin: 0; padding: 0; -webkit-tap-highlight-color: transparent; user-select: none; }
-        .app-container { max-width: 480px; margin: 0 auto; min-height: 100vh; background-color: #f8fafc; position: relative; display: flex; flex-direction: column; box-shadow: 0 0 25px rgba(0, 0, 0, 0.4); overflow-x: hidden; }
+        *, *::before, *::after { box-sizing: border-box; }
+        html, body {
+            font-family: 'Noto Sans KR', 'Inter', sans-serif;
+            background-color: #f8fafc;
+            margin: 0;
+            padding: 0;
+            width: 100%;
+            max-width: 100vw;
+            overflow-x: hidden;
+            -webkit-tap-highlight-color: transparent;
+            -webkit-text-size-adjust: 100%;
+            user-select: none;
+        }
+        /* 모든 스마트폰, 폴더블(커버/메인), 태블릿에 100% 맞춰지는 유동 컨테이너 */
+        .app-container {
+            width: 100%;
+            max-width: 100%;
+            margin: 0 auto;
+            min-height: 100vh;
+            min-height: 100dvh;
+            background-color: #f8fafc;
+            position: relative;
+            display: flex;
+            flex-direction: column;
+            overflow-x: hidden;
+        }
+        /* PC 모니터 등 초대형 화면에서만 가독성을 위해 중앙 정렬 (폴더블 펼침 화면까지는 100% 꽉 차게 출력) */
+        @media (min-width: 1024px) {
+            body { background-color: #1e293b; }
+            .app-container { max-width: 960px; box-shadow: 0 0 30px rgba(0, 0, 0, 0.4); }
+        }
         .no-scrollbar::-webkit-scrollbar { display: none; }
         .no-scrollbar { -ms-overflow-style: none; scrollbar-width: none; }
         .bottom-sheet-backdrop { background-color: rgba(15, 23, 42, 0.65); backdrop-filter: blur(2px); transition: opacity 0.25s ease; }
-        .bottom-sheet-content { transition: transform 0.3s cubic-bezier(0.16, 1, 0.3, 1); max-height: 88vh; }
-        .cal-cell { min-height: 86px; transition: background-color 0.15s ease; }
+        .bottom-sheet-content { transition: transform 0.3s cubic-bezier(0.16, 1, 0.3, 1); max-height: 90vh; max-height: 90dvh; }
+        
+        /* 달력 셀이 좁은 화면(폴드 커버 등)에서도 절대 밖으로 튀어나가지 않도록 제어 */
+        .cal-cell {
+            min-height: 78px;
+            min-width: 0;
+            word-break: break-all;
+            transition: background-color 0.15s ease;
+        }
+        @media (min-width: 600px) {
+            .cal-cell { min-height: 96px; }
+        }
         .cal-cell:active { background-color: #f1f5f9; }
+
         @keyframes slideDown { from { transform: translate(-50%, -100%); opacity: 0; } to { transform: translate(-50%, 0); opacity: 1; } }
         .toast-enter { animation: slideDown 0.3s cubic-bezier(0.16, 1, 0.3, 1) forwards; }
-        #loading-overlay { display: none; position: fixed; inset: 0; max-width: 480px; margin: 0 auto; background: rgba(255,255,255,0.85); z-index: 9999; flex-direction: column; justify-content: center; align-items: center; backdrop-filter: blur(4px); }
+        
+        #loading-overlay {
+            display: none;
+            position: fixed;
+            inset: 0;
+            width: 100%;
+            height: 100%;
+            background: rgba(255,255,255,0.88);
+            z-index: 9999;
+            flex-direction: column;
+            justify-content: center;
+            align-items: center;
+            backdrop-filter: blur(4px);
+        }
         .spinner { border: 4px solid #f3f3f3; border-top: 4px solid #4f46e5; border-radius: 50%; width: 44px; height: 44px; animation: spin 1s linear infinite; }
         @keyframes spin { 0% { transform: rotate(0deg); } 100% { transform: rotate(360deg); } }
+        
         .sticky-col-shadow { box-shadow: 2px 0 5px -2px rgba(0,0,0,0.08); }
+        .touch-scroll-x { overflow-x: auto; -webkit-overflow-scrolling: touch; overscroll-behavior-x: contain; }
     </style>
 </head>
 <body>
@@ -34,46 +89,46 @@
     </div>
 
     <!-- 토스트 메시지 -->
-    <div id="toast-container" class="fixed top-4 left-1/2 transform -translate-x-1/2 z-50 w-11/12 max-w-[440px] pointer-events-none flex flex-col gap-2"></div>
+    <div id="toast-container" class="fixed top-4 left-1/2 transform -translate-x-1/2 z-50 w-[92vw] max-w-[500px] pointer-events-none flex flex-col gap-2"></div>
 
-    <!-- 상단 헤더 -->
-    <header id="app-header" class="sticky top-0 z-30 bg-white/95 backdrop-blur border-b border-slate-200 px-4 py-3 flex items-center justify-between hidden">
-        <div class="flex items-center gap-2.5">
-            <div id="header-avatar" class="w-9 h-9 rounded-xl bg-indigo-600 text-white flex items-center justify-center font-bold text-sm shadow-sm">관</div>
-            <div>
-                <div class="flex items-center gap-1.5">
-                    <span id="header-username" class="font-bold text-slate-800 text-sm">관리자</span>
-                    <span id="header-role-badge" class="text-[10px] font-semibold px-2 py-0.5 rounded-full bg-indigo-100 text-indigo-700">ADMIN</span>
+    <!-- 상단 헤더 (좁은 화면에서도 잘리지 않도록 유동적 축소 적용) -->
+    <header id="app-header" class="sticky top-0 z-30 bg-white/95 backdrop-blur border-b border-slate-200 px-3 sm:px-5 py-2.5 flex items-center justify-between gap-2 hidden w-full">
+        <div class="flex items-center gap-2 min-w-0 flex-1">
+            <div id="header-avatar" class="w-8 h-8 sm:w-9 sm:h-9 rounded-xl bg-indigo-600 text-white flex items-center justify-center font-bold text-xs sm:text-sm shadow-sm shrink-0">관</div>
+            <div class="min-w-0 flex-1">
+                <div class="flex items-center gap-1.5 flex-wrap">
+                    <span id="header-username" class="font-bold text-slate-800 text-xs sm:text-sm truncate">관리자</span>
+                    <span id="header-role-badge" class="text-[9px] sm:text-[10px] font-semibold px-1.5 py-0.5 rounded-full bg-indigo-100 text-indigo-700 shrink-0">ADMIN</span>
                 </div>
-                <p id="header-subtext" class="text-[11px] text-slate-400">주간 자동배정 & 주 52h 스케줄러</p>
+                <p id="header-subtext" class="text-[10px] sm:text-[11px] text-slate-400 truncate">주간 자동배정 & 주 52h 스케줄러</p>
             </div>
         </div>
-        <div id="header-actions" class="flex items-center gap-1.5"></div>
+        <div id="header-actions" class="flex items-center gap-1 sm:gap-1.5 shrink-0"></div>
     </header>
 
     <!-- 메인 컨텐츠 영역 -->
-    <main id="main-content" class="flex-1 pb-24 overflow-y-auto">
-        <div class="flex flex-col items-center justify-center h-[60vh] text-center px-6">
+    <main id="main-content" class="flex-1 pb-24 w-full max-w-full overflow-x-hidden">
+        <div class="flex flex-col items-center justify-center h-[60vh] text-center px-4">
             <i class="fa-solid fa-spinner fa-spin text-indigo-500 text-4xl mb-4"></i>
             <h2 class="text-slate-800 font-bold mb-2">화면을 불러오고 있습니다...</h2>
         </div>
     </main>
 
-    <!-- 하단 고정 네비게이션 -->
-    <nav id="bottom-nav" class="fixed bottom-0 left-1/2 transform -translate-x-1/2 w-full max-w-[480px] bg-white border-t border-slate-200 z-30 flex justify-around items-center py-1.5 px-1 shadow-[0_-4px_15px_rgba(0,0,0,0.03)] hidden"></nav>
+    <!-- 하단 고정 네비게이션 (전 기기 해상도 대응) -->
+    <nav id="bottom-nav" class="fixed bottom-0 left-0 right-0 mx-auto w-full lg:max-w-[960px] bg-white/95 backdrop-blur border-t border-slate-200 z-30 flex justify-around items-center py-1.5 px-1 shadow-[0_-4px_15px_rgba(0,0,0,0.04)] hidden"></nav>
 
     <!-- 공통 바텀시트 / 알림 모달 -->
-    <div id="modal-overlay" class="fixed inset-0 z-40 bottom-sheet-backdrop hidden flex items-end justify-center" onclick="handleBackdropClick(event)">
-        <div id="modal-sheet" class="bg-white w-full max-w-[480px] rounded-t-3xl shadow-2xl bottom-sheet-content flex flex-col overflow-hidden" onclick="event.stopPropagation()">
-            <div class="pt-3 pb-2 px-5 border-b border-slate-100 flex items-center justify-between shrink-0">
+    <div id="modal-overlay" class="fixed inset-0 z-40 bottom-sheet-backdrop hidden flex items-end sm:items-center justify-center p-0 sm:p-4" onclick="handleBackdropClick(event)">
+        <div id="modal-sheet" class="bg-white w-full sm:max-w-[640px] rounded-t-3xl sm:rounded-3xl shadow-2xl bottom-sheet-content flex flex-col overflow-hidden" onclick="event.stopPropagation()">
+            <div class="pt-3 pb-2 px-4 sm:px-5 border-b border-slate-100 flex items-center justify-between shrink-0">
                 <div class="w-8"></div><div class="w-10 h-1.5 bg-slate-200 rounded-full mx-auto"></div>
                 <button onclick="closeModal()" class="w-8 h-8 rounded-full bg-slate-100 text-slate-500 flex items-center justify-center hover:bg-slate-200"><i class="fa-solid fa-xmark"></i></button>
             </div>
-            <div id="modal-title-bar" class="px-5 pt-2 pb-3 border-b border-slate-100 shrink-0">
-                <h3 id="modal-title" class="text-base font-bold text-slate-800">모달 제목</h3>
+            <div id="modal-title-bar" class="px-4 sm:px-5 pt-2 pb-3 border-b border-slate-100 shrink-0">
+                <h3 id="modal-title" class="text-sm sm:text-base font-bold text-slate-800">모달 제목</h3>
                 <p id="modal-subtitle" class="text-xs text-slate-500 mt-0.5 hidden"></p>
             </div>
-            <div id="modal-body" class="p-5 overflow-y-auto flex-1 space-y-4"></div>
+            <div id="modal-body" class="p-4 sm:p-5 overflow-y-auto flex-1 space-y-4"></div>
         </div>
     </div>
 </div>
@@ -290,7 +345,6 @@ let state = {
     activeTab: 'schedule',
     viewMode: 'week',
     otViewSubTab: 'weekly',
-    // 관리자 신청확인창 전용 상태값 (목록 / 달력 / 사람별)
     reqAdminViewMode: 'list', // 'list' | 'calendar' | 'person'
     reqAdminSelectedDate: formatDate(CURRENT_YEAR, CURRENT_MONTH, todayObj.getDate()),
     reqAdminSelectedUserId: '',
@@ -586,7 +640,6 @@ function runWeeklySmartAutoSchedule(year, month, weekIndex, silent = false, incl
     const weekWorkMap = {};
     userIds.forEach(uid => weekWorkMap[uid] = 0);
 
-    // [1단계] 주말 및 공휴일 선배정 스캔
     targetWeek.forEach(cell => {
         const dateStr = cell.dateStr;
         if (isWeekendOrHoliday(dateStr)) {
@@ -621,7 +674,6 @@ function runWeeklySmartAutoSchedule(year, month, weekIndex, silent = false, incl
 
     const impossibleSlots = [];
 
-    // [2단계] 평일 스케줄 자동 배정 (주 52시간 이내)
     targetWeek.forEach((cell, dIdx) => {
         const dateStr = cell.dateStr;
 
@@ -662,7 +714,6 @@ function runWeeklySmartAutoSchedule(year, month, weekIndex, silent = false, incl
                 return !onLeaveToday.has(uid) && !assignedToday.has(uid) && stats[uid] && canUserWorkShift(u, shift.id) && isWithin52Hours(uid);
             });
 
-            // 중복 신청자가 있을 경우 고유 ID만 추출
             const uniquePrefCandidates = [...new Set(prefCandidates)];
 
             uniquePrefCandidates.sort((a, b) => stats[a].prefGranted !== stats[b].prefGranted ? stats[a].prefGranted - stats[b].prefGranted : stats[a].totalWorked - stats[b].totalWorked);
@@ -787,11 +838,10 @@ function openWeekendPreAssignModal(targetWeekIdx = state.currentWeekIndex) {
         label: getHolidayBadgeLabel(cell.dateStr)
     }));
 
-    // 모달 내 주차 선택 버튼도 스크롤 없이 한눈에 다 보이도록 그리드로 배치
     let weekTabsHtml = weeks.map((w, idx) => {
         const f = w[0], l = w[6];
         const active = idx === targetWeekIdx;
-        return `<button type="button" onclick="openWeekendPreAssignModal(${idx})" class="py-1.5 px-2 rounded-xl text-[11px] font-bold border transition ${active ? 'bg-rose-600 text-white border-rose-600 shadow-sm' : 'bg-white text-slate-600 border-slate-200'}">${idx + 1}주차 (${f.month}/${f.day}~${l.month}/${l.day})</button>`;
+        return `<button type="button" onclick="openWeekendPreAssignModal(${idx})" class="py-1.5 px-1 rounded-xl text-[10px] sm:text-[11px] font-bold border transition ${active ? 'bg-rose-600 text-white border-rose-600 shadow-sm' : 'bg-white text-slate-600 border-slate-200'}">${idx + 1}주차(${f.month}/${f.day}~${l.month}/${l.day})</button>`;
     }).join('');
 
     let cardsHtml = holidayDates.map(h => {
@@ -806,7 +856,7 @@ function openWeekendPreAssignModal(targetWeekIdx = state.currentWeekIndex) {
 
             return `
             <div class="p-2.5 rounded-xl bg-slate-50 border border-slate-200 space-y-2">
-                <div class="flex items-center justify-between">
+                <div class="flex items-center justify-between flex-wrap gap-1">
                     <div>
                         <span style="background:${c.bg}; color:${c.text}; border:1px solid ${c.border}" class="text-[10px] font-bold px-2 py-0.5 rounded">${s.name}</span>
                         <span class="text-[11px] font-semibold text-slate-600 ml-1">${s.time}</span>
@@ -820,7 +870,7 @@ function openWeekendPreAssignModal(targetWeekIdx = state.currentWeekIndex) {
                     }).join('')}
                 </div>
                 <div class="flex gap-1.5 pt-1">
-                    <select id="wk-sel-${h.dateStr}-${s.id}" class="flex-1 bg-white border border-slate-200 rounded-lg px-2 py-1 text-xs">
+                    <select id="wk-sel-${h.dateStr}-${s.id}" class="flex-1 min-w-0 bg-white border border-slate-200 rounded-lg px-2 py-1 text-xs">
                         <option value="">+ 주말 근무자 선택 (${db.users.length}명 중)...</option>
                         ${db.users.map(u => {
                             if (assignedIds.includes(u.id)) return '';
@@ -833,14 +883,14 @@ function openWeekendPreAssignModal(targetWeekIdx = state.currentWeekIndex) {
                             return `<option value="${u.id}">${u.name} (${u.role})</option>`;
                         }).join('')}
                     </select>
-                    <button type="button" onclick="addWeekendWorkerFromSelect('${h.dateStr}', '${s.id}', ${targetWeekIdx})" class="px-3 py-1 rounded-lg bg-slate-800 text-white text-xs font-bold">추가</button>
+                    <button type="button" onclick="addWeekendWorkerFromSelect('${h.dateStr}', '${s.id}', ${targetWeekIdx})" class="px-3 py-1 rounded-lg bg-slate-800 text-white text-xs font-bold shrink-0">추가</button>
                 </div>
             </div>`;
         }).join('');
 
         return `
         <div class="p-3.5 rounded-2xl border border-slate-200 bg-white space-y-2.5 shadow-sm">
-            <div class="flex items-center justify-between border-b border-slate-100 pb-2">
+            <div class="flex items-center justify-between border-b border-slate-100 pb-2 flex-wrap gap-1">
                 <div class="flex items-center gap-2">
                     <span class="font-extrabold text-sm text-rose-600">${h.month}월 ${h.day}일 (${h.dow})</span>
                     <span class="text-[10px] font-bold px-2 py-0.5 rounded-full bg-rose-100 text-rose-700">${h.label}</span>
@@ -853,7 +903,7 @@ function openWeekendPreAssignModal(targetWeekIdx = state.currentWeekIndex) {
 
     let html = `
         <div class="space-y-3.5">
-            <div class="grid grid-cols-3 gap-1.5">${weekTabsHtml}</div>
+            <div class="grid grid-cols-2 sm:grid-cols-3 gap-1.5">${weekTabsHtml}</div>
             <div class="bg-indigo-50 border border-indigo-200 rounded-2xl p-3 text-xs text-indigo-950 space-y-1">
                 <div class="font-bold text-indigo-700">📌 1단계: ${targetWeekIdx + 1}주차 주말·공휴일 근무자 먼저 선정</div>
                 <div>• 선정한 주말 스케줄은 <b>[2단계: ${targetWeekIdx + 1}주차 주간 자동배정]</b> 실행 시 그대로 보존되며 주 52시간 계산에 선반영됩니다.</div>
@@ -976,29 +1026,29 @@ function openAdminPreviewSwitchModal() {
         const fixedShift = u.fixedShiftId ? getShiftById(u.fixedShiftId) : null;
         return `
         <button onclick="adminSwitchViewTo('${u.id}')" class="w-full p-2.5 rounded-2xl border ${isCurrent ? 'border-emerald-600 bg-emerald-50' : 'border-slate-200 bg-white'} flex justify-between items-center transition">
-            <div class="flex items-center gap-2.5">
-                <div class="w-8 h-8 rounded-xl ${u.avatarColor || 'bg-slate-600'} text-white flex items-center justify-center font-bold text-xs">${u.name.charAt(0)}</div>
-                <div class="text-left">
-                    <div class="font-bold text-xs text-slate-800">${u.name} <span class="text-[11px] font-normal text-slate-500">(${u.role})</span></div>
-                    <div class="text-[10px] text-slate-400">${fixedShift ? `📌 고정: ${fixedShift.name}` : `연차 ${u.totalLeave}일`}</div>
+            <div class="flex items-center gap-2.5 min-w-0">
+                <div class="w-8 h-8 rounded-xl ${u.avatarColor || 'bg-slate-600'} text-white flex items-center justify-center font-bold text-xs shrink-0">${u.name.charAt(0)}</div>
+                <div class="text-left truncate">
+                    <div class="font-bold text-xs text-slate-800 truncate">${u.name} <span class="text-[11px] font-normal text-slate-500">(${u.role})</span></div>
+                    <div class="text-[10px] text-slate-400 truncate">${fixedShift ? `📌 고정: ${fixedShift.name}` : `연차 ${u.totalLeave}일`}</div>
                 </div>
             </div>
-            ${isCurrent ? '<span class="text-[11px] font-bold text-emerald-600 px-2 py-0.5 bg-emerald-100 rounded-lg">현재 열람중</span>' : '<span class="text-[11px] text-slate-400">보기 →</span>'}
+            ${isCurrent ? '<span class="text-[11px] font-bold text-emerald-600 px-2 py-0.5 bg-emerald-100 rounded-lg shrink-0">현재 열람중</span>' : '<span class="text-[11px] text-slate-400 shrink-0">보기 →</span>'}
         </button>`;
     }).join('');
 
     let html = `
         <div class="space-y-3">
             <button onclick="adminSwitchViewTo('admin')" class="w-full p-3.5 rounded-2xl border ${isCurrentlyAdmin ? 'border-indigo-600 bg-indigo-50' : 'border-slate-200 bg-white'} flex justify-between items-center transition">
-                <div class="flex items-center gap-3">
-                    <div class="w-10 h-10 rounded-xl bg-indigo-600 text-white flex items-center justify-center font-bold"><i class="fa-solid fa-user-shield"></i></div>
-                    <div class="text-left"><div class="font-bold text-sm text-slate-800">관리자 총괄 화면 (주간 가배정 & 배포)</div><div class="text-xs text-slate-500">주말 선정 · 주간 자동배정 · 공식배포</div></div>
+                <div class="flex items-center gap-3 min-w-0">
+                    <div class="w-10 h-10 rounded-xl bg-indigo-600 text-white flex items-center justify-center font-bold shrink-0"><i class="fa-solid fa-user-shield"></i></div>
+                    <div class="text-left truncate"><div class="font-bold text-sm text-slate-800 truncate">관리자 총괄 화면 (주간 가배정 & 배포)</div><div class="text-xs text-slate-500 truncate">주말 선정 · 주간 자동배정 · 공식배포</div></div>
                 </div>
-                ${isCurrentlyAdmin ? '<span class="text-xs font-bold text-indigo-600 px-2 py-1 bg-indigo-100 rounded-lg">현재 화면</span>' : '<i class="fa-solid fa-chevron-right text-slate-400"></i>'}
+                ${isCurrentlyAdmin ? '<span class="text-xs font-bold text-indigo-600 px-2 py-1 bg-indigo-100 rounded-lg shrink-0">현재 화면</span>' : '<i class="fa-solid fa-chevron-right text-slate-400 shrink-0"></i>'}
             </button>
             <div class="pt-2">
                 <div class="text-xs font-bold text-slate-400 mb-2 px-1">개별 근무자 화면으로 들어가기 (총 ${db.users.length}명)</div>
-                <div class="grid grid-cols-1 gap-1.5 max-h-[48vh] overflow-y-auto pr-1">${usersHtml}</div>
+                <div class="grid grid-cols-1 sm:grid-cols-2 gap-1.5 max-h-[48vh] overflow-y-auto pr-1">${usersHtml}</div>
             </div>
         </div>`;
     openModal('관리자 전용 화면 전환', '', html);
@@ -1017,15 +1067,15 @@ function renderApp() {
     nameEl.textContent = state.currentUser.name;
 
     if (isViewingAsAdmin()) {
-        avatarEl.className = 'w-9 h-9 rounded-xl bg-indigo-600 text-white flex justify-center items-center font-bold text-sm shadow-sm';
+        avatarEl.className = 'w-8 h-8 sm:w-9 sm:h-9 rounded-xl bg-indigo-600 text-white flex justify-center items-center font-bold text-xs sm:text-sm shadow-sm shrink-0';
         avatarEl.innerHTML = '<i class="fa-solid fa-bolt"></i>';
-        badgeEl.className = 'text-[10px] font-bold px-2 py-0.5 rounded-full bg-indigo-100 text-indigo-700';
+        badgeEl.className = 'text-[9px] sm:text-[10px] font-bold px-1.5 py-0.5 rounded-full bg-indigo-100 text-indigo-700 shrink-0';
         badgeEl.textContent = '관리자 모드';
         subEl.textContent = db.hasUnpublishedChanges ? '⚠️ 미배포 수정본 작업중' : '✅ 배포본과 동기화됨';
     } else {
-        avatarEl.className = `w-9 h-9 rounded-xl ${state.currentUser.avatarColor || 'bg-emerald-600'} text-white flex justify-center items-center font-bold text-sm shadow-sm`;
+        avatarEl.className = `w-8 h-8 sm:w-9 sm:h-9 rounded-xl ${state.currentUser.avatarColor || 'bg-emerald-600'} text-white flex justify-center items-center font-bold text-xs sm:text-sm shadow-sm shrink-0`;
         avatarEl.textContent = state.currentUser.name.charAt(0);
-        badgeEl.className = 'text-[10px] font-bold px-2 py-0.5 rounded-full bg-emerald-100 text-emerald-700';
+        badgeEl.className = 'text-[9px] sm:text-[10px] font-bold px-1.5 py-0.5 rounded-full bg-emerald-100 text-emerald-700 shrink-0';
         badgeEl.textContent = state.currentUser.role;
         subEl.textContent = isAuthenticatedAdmin() ? '👑 관리자 미리보기 중 (배포본)' : '공식 배포된 확정 스케줄';
     }
@@ -1038,13 +1088,13 @@ function renderApp() {
     if (isAuthenticatedAdmin()) {
         if (!isViewingAsAdmin()) {
             actionBtns += `
-                <button onclick="adminSwitchViewTo('admin')" class="text-xs bg-indigo-600 hover:bg-indigo-700 text-white font-bold px-2.5 py-2 rounded-xl flex items-center gap-1 shadow-sm transition">
-                    <i class="fa-solid fa-crown text-amber-300"></i><span>관리자복귀</span>
+                <button onclick="adminSwitchViewTo('admin')" class="text-[11px] sm:text-xs bg-indigo-600 hover:bg-indigo-700 text-white font-bold px-2 sm:px-2.5 py-1.5 sm:py-2 rounded-xl flex items-center gap-1 shadow-sm transition">
+                    <i class="fa-solid fa-crown text-amber-300"></i><span>복귀</span>
                 </button>
             `;
         }
         actionBtns += `
-            <button onclick="openAdminPreviewSwitchModal()" class="text-xs bg-indigo-50 hover:bg-indigo-100 text-indigo-700 font-bold px-2.5 py-2 rounded-xl flex items-center gap-1 transition">
+            <button onclick="openAdminPreviewSwitchModal()" class="text-[11px] sm:text-xs bg-indigo-50 hover:bg-indigo-100 text-indigo-700 font-bold px-2 sm:px-2.5 py-1.5 sm:py-2 rounded-xl flex items-center gap-1 transition">
                 <i class="fa-solid fa-users-viewfinder"></i><span>직원화면</span>
             </button>
         `;
@@ -1070,26 +1120,26 @@ function renderBottomNav() {
     const totalPending = db.leaveRequests.filter(r => r.status === 'pending').length + db.shiftPreferences.filter(r => r.status === 'pending').length;
 
     const tabs = isAdmin ? [
-        { id: 'schedule', icon: 'fa-calendar-days', label: '주간스케줄·배포', dot: db.hasUnpublishedChanges },
+        { id: 'schedule', icon: 'fa-calendar-days', label: '주간스케줄', dot: db.hasUnpublishedChanges },
         { id: 'ot', icon: 'fa-business-time', label: 'OT·52h관리' },
-        { id: 'requests', icon: 'fa-inbox', label: '신청확인(달력/사람)', badge: totalPending },
+        { id: 'requests', icon: 'fa-inbox', label: '신청확인', badge: totalPending },
         { id: 'stats', icon: 'fa-chart-pie', label: '공평통계' },
         { id: 'settings', icon: 'fa-sliders', label: '시프트·설정' }
     ] : [
         { id: 'schedule', icon: 'fa-calendar-check', label: '확정근무표' },
         { id: 'ot', icon: 'fa-business-time', label: '내 OT·주52h' },
-        { id: 'requests', icon: 'fa-paper-plane', label: '휴가·시프트신청' },
+        { id: 'requests', icon: 'fa-paper-plane', label: '휴가·신청' },
         { id: 'stats', icon: 'fa-chart-simple', label: '근무통계' }
     ];
 
     nav.innerHTML = tabs.map(t => `
-        <button onclick="switchTab('${t.id}')" class="relative flex-1 py-1.5 flex flex-col items-center justify-center gap-1 transition ${state.activeTab === t.id ? 'text-indigo-600' : 'text-slate-400'}">
+        <button onclick="switchTab('${t.id}')" class="relative flex-1 min-w-0 py-1.5 flex flex-col items-center justify-center gap-1 transition ${state.activeTab === t.id ? 'text-indigo-600' : 'text-slate-400'}">
             <div class="relative">
-                <i class="fa-solid ${t.icon} text-base ${state.activeTab === t.id ? 'scale-110' : ''}"></i>
-                ${t.badge ? `<span class="absolute -top-1.5 -right-2.5 bg-rose-500 text-white text-[10px] font-bold px-1.5 py-0.2 rounded-full min-w-[16px] h-4 flex items-center justify-center shadow">${t.badge}</span>` : ''}
-                ${t.dot ? `<span class="absolute -top-1 -right-1.5 w-2.5 h-2.5 bg-amber-500 rounded-full ring-2 ring-white"></span>` : ''}
+                <i class="fa-solid ${t.icon} text-sm sm:text-base ${state.activeTab === t.id ? 'scale-110' : ''}"></i>
+                ${t.badge ? `<span class="absolute -top-1.5 -right-2.5 bg-rose-500 text-white text-[9px] font-bold px-1.5 py-0.2 rounded-full min-w-[15px] h-3.5 flex items-center justify-center shadow">${t.badge}</span>` : ''}
+                ${t.dot ? `<span class="absolute -top-1 -right-1.5 w-2 h-2 bg-amber-500 rounded-full ring-2 ring-white"></span>` : ''}
             </div>
-            <span class="text-[10px] font-semibold tracking-tight">${t.label}</span>
+            <span class="text-[10px] font-semibold tracking-tight truncate w-full text-center px-0.5">${t.label}</span>
             ${state.activeTab === t.id ? '<span class="w-4 h-1 bg-indigo-600 rounded-full"></span>' : '<span class="w-4 h-1 bg-transparent"></span>'}
         </button>
     `).join('');
@@ -1099,19 +1149,19 @@ function switchTab(tabId) { state.activeTab = tabId; window.scrollTo({ top: 0, b
 function renderLoginView() {
     let selectOptions = db.users.map(u => `<option value="${u.id}">👤 ${u.name} (${u.role})</option>`).join('');
     return `
-    <div class="min-h-screen flex flex-col justify-between p-6 bg-gradient-to-b from-indigo-950 via-slate-900 to-slate-900 text-white">
-        <div class="pt-8">
+    <div class="min-h-screen w-full flex flex-col justify-between p-4 sm:p-8 bg-gradient-to-b from-indigo-950 via-slate-900 to-slate-900 text-white">
+        <div class="pt-6 max-w-lg mx-auto w-full">
             <div class="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-indigo-500/20 border border-indigo-400/30 text-indigo-300 text-xs font-semibold mb-4">
-                <i class="fa-solid fa-shield-halved"></i> 주간 자동배정 & 신청 이력 영구보존
+                <i class="fa-solid fa-mobile-screen-button"></i> 전 기기 & Z폴드8 완벽 대응 버전
             </div>
-            <h1 class="text-2xl font-bold tracking-tight">스마트 근무 스케줄러</h1>
+            <h1 class="text-xl sm:text-2xl font-bold tracking-tight">스마트 근무 스케줄러</h1>
             <p class="text-xs text-slate-400 mt-2 leading-relaxed">
-                • <b>승인/반려 확정 잠금</b>: 한 번 결정된 신청은 번복되지 않으며 재신청 시 모든 이력이 보존됩니다.<br>
+                • <b>전 화면 자동 맞춤</b>: 폴드 커버 화면(좁은 폭)부터 펼친 메인 화면까지 좌우 잘림 없이 자동 조절됩니다.<br>
                 • <b>신청 통합 뷰</b>: 일별(달력) 신청 현황 및 사람별 신청 이력을 한눈에 확인하세요.
             </p>
         </div>
 
-        <div class="my-auto bg-white/10 backdrop-blur-md border border-white/15 rounded-3xl p-6 space-y-5 shadow-2xl">
+        <div class="my-auto max-w-lg mx-auto w-full bg-white/10 backdrop-blur-md border border-white/15 rounded-3xl p-5 sm:p-6 space-y-5 shadow-2xl">
             <div class="flex items-center justify-between border-b border-white/10 pb-3">
                 <div class="flex items-center gap-2">
                     <i class="fa-solid fa-user-lock text-indigo-400"></i>
@@ -1148,7 +1198,7 @@ function renderLoginView() {
 
 /**
  * ==========================================
- * 5. 탭 1: 스케줄 탭 (주차 버튼 그리드화 & 주간 매트릭스 뷰)
+ * 5. 탭 1: 스케줄 탭 (전 해상도 반응형 패딩 및 그리드 적용)
  * ==========================================
  */
 function renderScheduleTab() {
@@ -1161,37 +1211,37 @@ function renderScheduleTab() {
     const { violations, overUserMap } = getOver52hViolations(year, month, isAdmin);
 
     let over52AlertBanner = violations.length > 0 ? `
-        <div class="bg-rose-600 text-white rounded-2xl p-3.5 shadow-md flex items-start gap-3">
-            <i class="fa-solid fa-triangle-exclamation text-amber-300 text-lg mt-0.5"></i>
-            <div class="flex-1 text-xs">
-                <div class="font-extrabold text-sm">🚨 주간 52시간 이상 근무자 발생 (${violations.length}건)</div>
+        <div class="bg-rose-600 text-white rounded-2xl p-3 sm:p-3.5 shadow-md flex items-start gap-2.5">
+            <i class="fa-solid fa-triangle-exclamation text-amber-300 text-base sm:text-lg mt-0.5 shrink-0"></i>
+            <div class="flex-1 min-w-0 text-xs">
+                <div class="font-extrabold text-xs sm:text-sm">🚨 주간 52시간 이상 근무자 발생 (${violations.length}건)</div>
                 <div class="mt-1 space-y-0.5 text-rose-100 max-h-20 overflow-y-auto">
-                    ${violations.map(v => `<div>• <b>${v.user.name}</b> (${v.user.role}): <b>${v.weekIdx}주차(${v.weekDaysStr}) 총 ${v.totalHours}시간</b> 근무</div>`).join('')}
+                    ${violations.map(v => `<div class="truncate">• <b>${v.user.name}</b> (${v.user.role}): <b>${v.weekIdx}주차(${v.weekDaysStr}) 총 ${v.totalHours}h</b></div>`).join('')}
                 </div>
             </div>
         </div>
     ` : '';
 
     let adminBanner = `
-        <div class="bg-slate-900 rounded-3xl p-4 text-white shadow-md space-y-3">
+        <div class="bg-slate-900 rounded-3xl p-3.5 sm:p-4 text-white shadow-md space-y-3">
             <div class="flex justify-between items-start gap-2">
-                <div>
+                <div class="min-w-0">
                     <span class="inline-flex items-center gap-1 text-[10px] font-bold uppercase px-2 py-0.5 rounded-md ${db.hasUnpublishedChanges ? 'bg-amber-400/20 text-amber-300' : 'bg-emerald-400/20 text-emerald-300'}">
                         <i class="fa-solid ${db.hasUnpublishedChanges ? 'fa-pen-ruler' : 'fa-circle-check'}"></i>
                         ${db.hasUnpublishedChanges ? '가배정 작업중 (미배포 수정본 있음)' : '공식 배포 완료 상태'}
                     </span>
-                    <h2 class="text-base font-bold mt-1">${state.currentWeekIndex + 1}주차 (${curWeekRangeStr}) 주간 스케줄링</h2>
+                    <h2 class="text-sm sm:text-base font-bold mt-1 truncate">${state.currentWeekIndex + 1}주차 (${curWeekRangeStr}) 주간 스케줄링</h2>
                 </div>
             </div>
 
             <div class="grid grid-cols-2 gap-2 pt-1">
-                <button onclick="openWeekendPreAssignModal(${state.currentWeekIndex})" class="py-2.5 px-3 rounded-2xl bg-rose-500/20 hover:bg-rose-500/30 border border-rose-400/40 text-rose-200 font-bold text-xs flex items-center justify-center gap-1.5 active:scale-95 transition">
-                    <i class="fa-solid fa-calendar-plus text-rose-400"></i>
-                    <span>1. ${state.currentWeekIndex + 1}주 주말 선정</span>
+                <button onclick="openWeekendPreAssignModal(${state.currentWeekIndex})" class="py-2.5 px-2 sm:px-3 rounded-2xl bg-rose-500/20 hover:bg-rose-500/30 border border-rose-400/40 text-rose-200 font-bold text-[11px] sm:text-xs flex items-center justify-center gap-1.5 active:scale-95 transition">
+                    <i class="fa-solid fa-calendar-plus text-rose-400 shrink-0"></i>
+                    <span class="truncate">1. ${state.currentWeekIndex + 1}주 주말 선정</span>
                 </button>
-                <button onclick="openAutoScheduleConfirmModal(${state.currentWeekIndex})" class="py-2.5 px-3 rounded-2xl bg-indigo-500/25 hover:bg-indigo-500/35 border border-indigo-400/40 text-indigo-200 font-bold text-xs flex items-center justify-center gap-1.5 active:scale-95 transition">
-                    <i class="fa-solid fa-wand-magic-sparkles text-amber-400"></i>
-                    <span>2. ${state.currentWeekIndex + 1}주 주간 자동배정</span>
+                <button onclick="openAutoScheduleConfirmModal(${state.currentWeekIndex})" class="py-2.5 px-2 sm:px-3 rounded-2xl bg-indigo-500/25 hover:bg-indigo-500/35 border border-indigo-400/40 text-indigo-200 font-bold text-[11px] sm:text-xs flex items-center justify-center gap-1.5 active:scale-95 transition">
+                    <i class="fa-solid fa-wand-magic-sparkles text-amber-400 shrink-0"></i>
+                    <span class="truncate">2. ${state.currentWeekIndex + 1}주 자동배정</span>
                 </button>
             </div>
 
@@ -1200,47 +1250,47 @@ function renderScheduleTab() {
                 <span>3. 스케줄 공식 배포 (전 직원 공유)</span>
             </button>
 
-            <div class="flex items-center justify-between pt-1 border-t border-slate-800 text-[10px] text-slate-400">
-                <span>최근 배포: ${db.lastPublishedAt || '초기 배포본'}</span>
-                <button onclick="openAdminPreviewSwitchModal()" class="text-indigo-300 font-bold underline">직원 화면 미리보기→</button>
+            <div class="flex items-center justify-between pt-1 border-t border-slate-800 text-[10px] text-slate-400 gap-2">
+                <span class="truncate">최근 배포: ${db.lastPublishedAt || '초기 배포본'}</span>
+                <button onclick="openAdminPreviewSwitchModal()" class="text-indigo-300 font-bold underline shrink-0">직원 화면 미리보기→</button>
             </div>
         </div>
     `;
 
     let fixedShiftObj = (!isAdmin && state.currentUser.fixedShiftId) ? getShiftById(state.currentUser.fixedShiftId) : null;
     let workerBanner = myStats ? `
-        <div class="bg-gradient-to-r from-indigo-600 to-violet-600 rounded-3xl p-4 text-white shadow-md">
-            <div class="flex justify-between items-start mb-3">
-                <div>
+        <div class="bg-gradient-to-r from-indigo-600 to-violet-600 rounded-3xl p-3.5 sm:p-4 text-white shadow-md">
+            <div class="flex justify-between items-start gap-2 mb-3">
+                <div class="min-w-0">
                     <span class="text-[10px] bg-white/20 px-2 py-0.5 rounded-full font-semibold">📢 공식 배포된 확정 스케줄</span>
-                    <h2 class="text-base font-bold mt-1">${state.currentUser.name}님 (${state.currentUser.role})</h2>
-                    ${fixedShiftObj ? `<p class="text-[11px] text-amber-200 font-semibold mt-0.5">📌 지정 근무시간: ${fixedShiftObj.name} (${fixedShiftObj.time})</p>` : ''}
+                    <h2 class="text-sm sm:text-base font-bold mt-1 truncate">${state.currentUser.name}님 (${state.currentUser.role})</h2>
+                    ${fixedShiftObj ? `<p class="text-[11px] text-amber-200 font-semibold mt-0.5 truncate">📌 지정 근무시간: ${fixedShiftObj.name} (${fixedShiftObj.time})</p>` : ''}
                 </div>
-                <button onclick="switchTab('requests')" class="bg-rose-500/90 hover:bg-rose-600 px-3 py-1.5 rounded-xl text-xs font-bold shadow-sm">+ 휴가·주말불가 신청</button>
+                <button onclick="switchTab('requests')" class="bg-rose-500/90 hover:bg-rose-600 px-2.5 py-1.5 rounded-xl text-[11px] font-bold shadow-sm shrink-0">+ 휴가·신청</button>
             </div>
             <div class="grid grid-cols-4 gap-1.5 pt-2 border-t border-white/15 text-center">
-                <div class="bg-white/10 rounded-2xl py-2 px-1"><div class="text-[10px] text-indigo-100">확정 근무일</div><div class="text-sm font-bold mt-0.5">${myStats.workDays}일</div></div>
-                <div class="bg-amber-400/25 border border-amber-300/40 rounded-2xl py-2 px-1"><div class="text-[10px] text-amber-200 font-semibold">이번달 OT</div><div class="text-sm font-extrabold text-amber-300 mt-0.5">${myStats.totalOt}h</div></div>
-                <div class="bg-white/10 rounded-2xl py-2 px-1"><div class="text-[10px] text-indigo-100">승인 휴가</div><div class="text-sm font-bold mt-0.5">${myStats.leaveDays}일</div></div>
-                <div class="bg-white/10 rounded-2xl py-2 px-1"><div class="text-[10px] text-indigo-100">잔여 연차</div><div class="text-sm font-bold mt-0.5">${myStats.remainingLeave}일</div></div>
+                <div class="bg-white/10 rounded-2xl py-2 px-1"><div class="text-[10px] text-indigo-100">확정 근무</div><div class="text-xs sm:text-sm font-bold mt-0.5">${myStats.workDays}일</div></div>
+                <div class="bg-amber-400/25 border border-amber-300/40 rounded-2xl py-2 px-1"><div class="text-[10px] text-amber-200 font-semibold">이번달 OT</div><div class="text-xs sm:text-sm font-extrabold text-amber-300 mt-0.5">${myStats.totalOt}h</div></div>
+                <div class="bg-white/10 rounded-2xl py-2 px-1"><div class="text-[10px] text-indigo-100">승인 휴가</div><div class="text-xs sm:text-sm font-bold mt-0.5">${myStats.leaveDays}일</div></div>
+                <div class="bg-white/10 rounded-2xl py-2 px-1"><div class="text-[10px] text-indigo-100">잔여 연차</div><div class="text-xs sm:text-sm font-bold mt-0.5">${myStats.remainingLeave}일</div></div>
             </div>
         </div>
     ` : '';
 
     return `
-    <div class="p-4 space-y-4">
+    <div class="p-2.5 sm:p-4 space-y-3.5 w-full max-w-full overflow-x-hidden">
         ${over52AlertBanner}
         ${isAdmin ? adminBanner : workerBanner}
-        <div class="bg-white rounded-2xl p-3 border shadow-sm space-y-2.5">
-            <div class="flex justify-between items-center">
+        <div class="bg-white rounded-2xl p-2.5 sm:p-3 border shadow-sm space-y-2.5 w-full">
+            <div class="flex justify-between items-center gap-2 flex-wrap">
                 <div class="flex gap-1 items-center">
-                    <button onclick="changeMonth(-1)" class="w-8 h-8 rounded-xl bg-slate-100 flex justify-center items-center text-xs"><i class="fa-solid fa-chevron-left"></i></button>
-                    <span class="font-bold text-sm px-2">${year}년 ${month}월</span>
-                    <button onclick="changeMonth(1)" class="w-8 h-8 rounded-xl bg-slate-100 flex justify-center items-center text-xs"><i class="fa-solid fa-chevron-right"></i></button>
+                    <button onclick="changeMonth(-1)" class="w-7 h-7 sm:w-8 sm:h-8 rounded-xl bg-slate-100 flex justify-center items-center text-xs"><i class="fa-solid fa-chevron-left"></i></button>
+                    <span class="font-bold text-xs sm:text-sm px-1.5 sm:px-2">${year}년 ${month}월</span>
+                    <button onclick="changeMonth(1)" class="w-7 h-7 sm:w-8 sm:h-8 rounded-xl bg-slate-100 flex justify-center items-center text-xs"><i class="fa-solid fa-chevron-right"></i></button>
                 </div>
                 <div class="flex bg-slate-100 p-1 rounded-xl">
-                    <button onclick="setViewMode('week')" class="px-3 py-1 rounded-lg text-xs font-bold transition ${state.viewMode === 'week' ? 'bg-indigo-600 text-white shadow-sm' : 'text-slate-600'}">주간(근무표)</button>
-                    <button onclick="setViewMode('month')" class="px-3 py-1 rounded-lg text-xs font-bold transition ${state.viewMode === 'month' ? 'bg-indigo-600 text-white shadow-sm' : 'text-slate-600'}">월간(휴가·불가)</button>
+                    <button onclick="setViewMode('week')" class="px-2.5 sm:px-3 py-1 rounded-lg text-[11px] sm:text-xs font-bold transition ${state.viewMode === 'week' ? 'bg-indigo-600 text-white shadow-sm' : 'text-slate-600'}">주간(근무표)</button>
+                    <button onclick="setViewMode('month')" class="px-2.5 sm:px-3 py-1 rounded-lg text-[11px] sm:text-xs font-bold transition ${state.viewMode === 'month' ? 'bg-indigo-600 text-white shadow-sm' : 'text-slate-600'}">월간(휴가·불가)</button>
                 </div>
             </div>
             ${!isAdmin ? `
@@ -1257,13 +1307,14 @@ function renderScheduleTab() {
     </div>`;
 }
 
+// 월간 달력: 좁은 커버 화면에서도 7열이 절대 잘리지 않도록 min-w-0 및 텍스트 축소 적용
 function renderMonthGrid(year, month, weeks) {
     const isAdmin = isViewingAsAdmin();
     const filterMy = !isAdmin && state.scheduleFilter === 'my';
     const myId = state.currentUser.id;
 
     let weeksHtml = weeks.map(week => `
-        <div class="grid grid-cols-7 divide-x">
+        <div class="grid grid-cols-7 divide-x w-full">
             ${week.map((cell, dIdx) => {
                 const { dateStr, day, isCurrentMonth } = cell;
                 const isHol = isWeekendOrHoliday(dateStr);
@@ -1281,55 +1332,53 @@ function renderMonthGrid(year, month, weeks) {
                 if (approvedLeaves.length > 0) {
                     approvedLeaves.slice(0, 3).forEach(lr => {
                         const u = getUserById(lr.userId);
-                        if (u) html += `<div class="mb-0.5 px-1 py-0.2 rounded bg-rose-50 text-rose-700 border border-rose-200 text-[9px] font-bold truncate">🌴휴·${u.name}</div>`;
+                        if (u) html += `<div class="mb-0.5 px-0.5 py-0.2 rounded bg-rose-50 text-rose-700 border border-rose-200 text-[8px] sm:text-[9px] font-bold truncate">🌴${u.name}</div>`;
                     });
                     if (approvedLeaves.length > 3) {
-                        html += `<div class="mb-0.5 px-1 py-0.2 rounded bg-rose-100 text-rose-800 text-[8px] font-extrabold text-center">휴가 외 +${approvedLeaves.length - 3}명</div>`;
+                        html += `<div class="mb-0.5 px-0.5 py-0.2 rounded bg-rose-100 text-rose-800 text-[8px] font-extrabold text-center">+${approvedLeaves.length - 3}명</div>`;
                     }
                 }
 
                 if (unavails.length > 0) {
                     unavails.slice(0, 3).forEach(item => {
                         const u = getUserById(item.userId);
-                        if (u) html += `<div class="mb-0.5 px-1 py-0.2 rounded bg-slate-200/80 text-slate-700 border border-slate-300 text-[9px] font-bold truncate">🚫불가·${u.name}</div>`;
+                        if (u) html += `<div class="mb-0.5 px-0.5 py-0.2 rounded bg-slate-200/80 text-slate-700 border border-slate-300 text-[8px] sm:text-[9px] font-bold truncate">🚫${u.name}</div>`;
                     });
                     if (unavails.length > 3) {
-                        html += `<div class="mb-0.5 px-1 py-0.2 rounded bg-slate-300 text-slate-800 text-[8px] font-extrabold text-center">불가 외 +${unavails.length - 3}명</div>`;
+                        html += `<div class="mb-0.5 px-0.5 py-0.2 rounded bg-slate-300 text-slate-800 text-[8px] font-extrabold text-center">+${unavails.length - 3}명</div>`;
                     }
                 }
 
                 const isToday = (dateStr === formatDate(CURRENT_YEAR, CURRENT_MONTH, todayObj.getDate()));
-                const dayColor = isToday ? 'w-5 h-5 rounded-full bg-indigo-600 text-white flex justify-center items-center' : (!isCurrentMonth ? 'text-slate-300 font-semibold' : ((dIdx===0 || isCustomHol) ? 'text-rose-500 font-extrabold' : (dIdx===6 ? 'text-blue-500 font-extrabold' : 'text-slate-700')));
+                const dayColor = isToday ? 'w-4 h-4 sm:w-5 sm:h-5 rounded-full bg-indigo-600 text-white flex justify-center items-center text-[10px]' : (!isCurrentMonth ? 'text-slate-300 font-semibold' : ((dIdx===0 || isCustomHol) ? 'text-rose-500 font-extrabold' : (dIdx===6 ? 'text-blue-500 font-extrabold' : 'text-slate-700')));
                 return `
-                <div onclick="openDayScheduleModal('${dateStr}')" class="cal-cell p-1 flex flex-col cursor-pointer ${!isCurrentMonth ? 'bg-slate-50/60 opacity-65' : (isHol ? 'bg-rose-50/20' : '')} hover:bg-indigo-50/40">
+                <div onclick="openDayScheduleModal('${dateStr}')" class="cal-cell p-0.5 sm:p-1 flex flex-col cursor-pointer ${!isCurrentMonth ? 'bg-slate-50/60 opacity-65' : (isHol ? 'bg-rose-50/20' : '')} hover:bg-indigo-50/40">
                     <div class="flex items-center justify-between">
-                        <span class="text-[11px] font-bold ${dayColor}">${!isCurrentMonth ? `${cell.month}/${day}` : day}</span>
-                        ${isCustomHol ? '<span class="text-[8px] font-bold text-rose-500">공휴</span>' : ''}
+                        <span class="text-[10px] sm:text-[11px] font-bold ${dayColor}">${!isCurrentMonth ? `${cell.month}/${day}` : day}</span>
+                        ${isCustomHol ? '<span class="text-[7px] sm:text-[8px] font-bold text-rose-500 shrink-0">공휴</span>' : ''}
                     </div>
-                    <div class="mt-0.5 flex-1 flex flex-col overflow-hidden">${html}</div>
+                    <div class="mt-0.5 flex-1 flex flex-col overflow-hidden min-w-0">${html}</div>
                 </div>`;
             }).join('')}
         </div>
     `).join('');
 
     return `
-    <div class="space-y-2">
-        <div class="flex items-center justify-between px-1 text-[11px] text-slate-500">
-            <span>📌 월간 달력에는 <b>🌴휴가자</b>와 <b>🚫주말근무불가자</b>만 표기됩니다.</span>
-            <button onclick="setViewMode('week')" class="text-indigo-600 font-bold underline">전 직원 근무표(주간)→</button>
+    <div class="space-y-2 w-full">
+        <div class="flex items-center justify-between px-1 text-[10px] sm:text-[11px] text-slate-500 gap-2">
+            <span class="truncate">📌 월간 달력: <b>🌴휴가자</b>와 <b>🚫주말불가자</b> 표기</span>
+            <button onclick="setViewMode('week')" class="text-indigo-600 font-bold underline shrink-0">주간근무표→</button>
         </div>
-        <div class="bg-white rounded-3xl border shadow-sm overflow-hidden">
-            <div class="grid grid-cols-7 border-b bg-slate-50 text-center py-2">
-                ${['일','월','화','수','목','금','토'].map((d,i) => `<div class="text-[11px] font-bold ${i===0?'text-rose-500':i===6?'text-blue-500':'text-slate-500'}">${d}</div>`).join('')}
+        <div class="bg-white rounded-3xl border shadow-sm overflow-hidden w-full">
+            <div class="grid grid-cols-7 border-b bg-slate-50 text-center py-2 w-full">
+                ${['일','월','화','수','목','금','토'].map((d,i) => `<div class="text-[10px] sm:text-[11px] font-bold ${i===0?'text-rose-500':i===6?'text-blue-500':'text-slate-500'}">${d}</div>`).join('')}
             </div>
-            <div class="divide-y">${weeksHtml}</div>
+            <div class="divide-y w-full">${weeksHtml}</div>
         </div>
     </div>`;
 }
 
-/**
- * [핵심 요구사항 1 반영] 주간 근무표의 1주차~5/6주차 버튼을 가로 스크롤 없이 모두 한눈에 클릭할 수 있도록 3열 그리드(grid-cols-3)로 배치!
- */
+// 주간 근무표: Z폴드 펼침 화면에서는 한눈에 다 들어오고, 좁은 화면에서는 표 내부만 부드럽게 스크롤되도록 최적화
 function renderWeekDetailList(year, month, weeks, overUserMap) {
     const isAdmin = isViewingAsAdmin();
     const filterMy = !isAdmin && state.scheduleFilter === 'my';
@@ -1338,14 +1387,13 @@ function renderWeekDetailList(year, month, weeks, overUserMap) {
     const currentWeek = weeks[state.currentWeekIndex] || weeks[0];
     const dayLabels = ['일', '월', '화', '수', '목', '금', '토'];
 
-    // 스크롤 없이 모든 주차를 바로 터치/클릭할 수 있는 반응형 그리드 탭
     let tabsHtml = weeks.map((w, idx) => {
         const f = w[0], l = w[6];
         const active = idx === state.currentWeekIndex;
         return `
-        <button type="button" onclick="setWeekIndex(${idx})" class="py-2 px-2 rounded-2xl text-xs font-bold border transition flex flex-col items-center justify-center ${active ? 'bg-indigo-600 text-white border-indigo-600 shadow-md ring-2 ring-indigo-200' : 'bg-white text-slate-700 border-slate-200 hover:bg-slate-50'}">
-            <span>${idx + 1}주차</span>
-            <span class="text-[10px] font-medium ${active ? 'text-indigo-100' : 'text-slate-400'}">${f.month}/${f.day}~${l.month}/${l.day}</span>
+        <button type="button" onclick="setWeekIndex(${idx})" class="py-1.5 sm:py-2 px-1 sm:px-2 rounded-2xl text-[11px] sm:text-xs font-bold border transition flex flex-col items-center justify-center min-w-0 ${active ? 'bg-indigo-600 text-white border-indigo-600 shadow-md ring-2 ring-indigo-200' : 'bg-white text-slate-700 border-slate-200 hover:bg-slate-50'}">
+            <span class="truncate">${idx + 1}주차</span>
+            <span class="text-[9px] sm:text-[10px] font-medium truncate ${active ? 'text-indigo-100' : 'text-slate-400'}">${f.month}/${f.day}~${l.month}/${l.day}</span>
         </button>`;
     }).join('');
 
@@ -1374,7 +1422,7 @@ function renderWeekDetailList(year, month, weeks, overUserMap) {
             const myLeave = db.leaveRequests.find(lr => lr.date === dateStr && lr.userId === u.id && lr.status === 'approved');
             if (myLeave) {
                 return `<td onclick="openDayScheduleModal('${dateStr}')" class="p-1 border-r border-slate-100 text-center cursor-pointer ${cellBgCls} hover:bg-rose-50/40">
-                    <span class="inline-block px-1.5 py-0.5 rounded bg-rose-100 text-rose-700 font-bold text-[10px] whitespace-nowrap">🌴${myLeave.type}</span>
+                    <span class="inline-block px-1 py-0.5 rounded bg-rose-100 text-rose-700 font-bold text-[9px] sm:text-[10px] whitespace-nowrap">🌴${myLeave.type}</span>
                 </td>`;
             }
 
@@ -1389,7 +1437,7 @@ function renderWeekDetailList(year, month, weeks, overUserMap) {
             if (assignedShift) {
                 const c = getShiftColor(assignedShift.colorId);
                 return `<td onclick="openDayScheduleModal('${dateStr}')" class="p-1 border-r border-slate-100 text-center cursor-pointer ${cellBgCls} hover:bg-indigo-50/40">
-                    <div style="background:${c.bg}; color:${c.text}; border:1px solid ${c.border}" class="px-1 py-0.5 rounded font-bold text-[10px] leading-tight whitespace-nowrap ${!isCurrentMonth ? 'opacity-85' : ''}">
+                    <div style="background:${c.bg}; color:${c.text}; border:1px solid ${c.border}" class="px-1 py-0.5 rounded font-bold text-[9px] sm:text-[10px] leading-tight whitespace-nowrap ${!isCurrentMonth ? 'opacity-85' : ''}">
                         ${assignedShift.name}
                     </div>
                     ${dailyOt > 0 ? `<div class="text-[8px] font-extrabold text-sky-600 mt-0.5">+${dailyOt}h</div>` : ''}
@@ -1413,58 +1461,58 @@ function renderWeekDetailList(year, month, weeks, overUserMap) {
 
         return `
         <tr class="border-b border-slate-100 ${isOver52 ? 'bg-rose-50/40' : 'hover:bg-slate-50/80'}">
-            <td class="sticky left-0 z-10 ${isOver52 ? 'bg-rose-50' : 'bg-white'} py-2 px-2.5 border-r border-slate-200 sticky-col-shadow whitespace-nowrap">
-                <div class="font-bold text-xs text-slate-800 flex items-center gap-1">
+            <td class="sticky left-0 z-10 ${isOver52 ? 'bg-rose-50' : 'bg-white'} py-2 px-2 border-r border-slate-200 sticky-col-shadow whitespace-nowrap">
+                <div class="font-bold text-[11px] sm:text-xs text-slate-800 flex items-center gap-0.5">
                     <span>${u.name}</span>
                     ${isOver52 ? '<span class="text-[9px] text-rose-600 font-extrabold">🚨</span>' : ''}
                 </div>
                 <div class="text-[9px] text-slate-400">${u.role}</div>
             </td>
             ${dayCellsHtml}
-            <td class="py-2 px-2 text-center border-r border-slate-100 whitespace-nowrap ${isOver52 ? 'bg-rose-100/80 text-rose-700 font-extrabold' : 'bg-slate-50/70 text-slate-800 font-bold'} text-xs">
+            <td class="py-2 px-1.5 text-center border-r border-slate-100 whitespace-nowrap ${isOver52 ? 'bg-rose-100/80 text-rose-700 font-extrabold' : 'bg-slate-50/70 text-slate-800 font-bold'} text-[11px] sm:text-xs">
                 ${weekTotalWork}h
             </td>
-            <td class="py-2 px-2 text-center whitespace-nowrap bg-sky-50/50 font-extrabold ${weekTotalOt > 0 ? 'text-sky-700' : 'text-slate-300'} text-xs">
+            <td class="py-2 px-1.5 text-center whitespace-nowrap bg-sky-50/50 font-extrabold ${weekTotalOt > 0 ? 'text-sky-700' : 'text-slate-300'} text-[11px] sm:text-xs">
                 ${weekTotalOt > 0 ? `+${weekTotalOt}h` : '0h'}
             </td>
         </tr>`;
     }).join('');
 
     return `
-    <div class="space-y-3">
-        <!-- 가로 스크롤 없이 모든 주차를 바로 누를 수 있는 3열 그리드 버튼 -->
-        <div class="grid grid-cols-3 gap-1.5">${tabsHtml}</div>
+    <div class="space-y-3 w-full max-w-full">
+        <!-- 주차 선택 그리드 (폴드 커버에서는 3열, 펼치면 최대 6열로 자동 정렬) -->
+        <div class="grid grid-cols-3 sm:grid-cols-6 gap-1.5 w-full">${tabsHtml}</div>
 
         ${!filterMy ? `
-        <div class="bg-white rounded-2xl px-3 py-2 border border-slate-200 flex items-center gap-2 shadow-sm">
+        <div class="bg-white rounded-2xl px-3 py-2 border border-slate-200 flex items-center gap-2 shadow-sm w-full">
             <i class="fa-solid fa-magnifying-glass text-slate-400 text-xs"></i>
-            <input type="text" value="${state.weekSearchQuery}" oninput="updateWeekSearch(this.value)" placeholder="직원 이름 또는 직급 검색 (총 ${db.users.length}명)..." class="flex-1 text-xs text-slate-800 focus:outline-none">
+            <input type="text" value="${state.weekSearchQuery}" oninput="updateWeekSearch(this.value)" placeholder="직원 이름 또는 직급 검색 (총 ${db.users.length}명)..." class="flex-1 min-w-0 text-xs text-slate-800 focus:outline-none">
             ${state.weekSearchQuery ? `<button onclick="updateWeekSearch('')" class="text-xs text-slate-400 hover:text-slate-600"><i class="fa-solid fa-circle-xmark"></i></button>` : ''}
         </div>
         ` : ''}
 
-        <!-- 주간 매트릭스 테이블 -->
-        <div class="bg-white rounded-3xl border border-slate-200 shadow-sm overflow-hidden">
-            <div class="overflow-x-auto max-h-[65vh]">
+        <!-- 주간 매트릭스 테이블: 컨테이너는 화면 폭 100%에 맞추고 내부만 부드러운 스크롤 허용 -->
+        <div class="bg-white rounded-2xl sm:rounded-3xl border border-slate-200 shadow-sm overflow-hidden w-full">
+            <div class="touch-scroll-x max-h-[65vh] w-full">
                 <table class="w-full border-collapse text-xs">
                     <thead class="sticky top-0 z-20 bg-slate-100 border-b border-slate-200 text-[10px] text-slate-600">
                         <tr>
-                            <th class="sticky left-0 z-30 bg-slate-100 py-2.5 px-2.5 text-left font-extrabold border-r border-slate-200 sticky-col-shadow min-w-[76px]">
-                                이름 (${targetUsers.length}명)
+                            <th class="sticky left-0 z-30 bg-slate-100 py-2.5 px-2 text-left font-extrabold border-r border-slate-200 sticky-col-shadow whitespace-nowrap">
+                                이름(${targetUsers.length})
                             </th>
                             ${currentWeek.map((cell, dIdx) => {
                                 const { dateStr, isCurrentMonth } = cell;
                                 const isCustomHol = (db.holidays || []).includes(dateStr);
                                 const colorCls = (dIdx === 0 || isCustomHol) ? 'text-rose-600 font-extrabold' : (dIdx === 6 ? 'text-blue-600 font-extrabold' : 'text-slate-700 font-bold');
-                                return `<th onclick="openDayScheduleModal('${dateStr}')" class="py-2 px-1.5 text-center border-r border-slate-200 min-w-[52px] cursor-pointer hover:bg-slate-200/70 ${!isCurrentMonth ? 'bg-slate-200/50 opacity-80' : ''} ${colorCls}">
+                                return `<th onclick="openDayScheduleModal('${dateStr}')" class="py-2 px-1 text-center border-r border-slate-200 min-w-[44px] sm:min-w-[56px] cursor-pointer hover:bg-slate-200/70 ${!isCurrentMonth ? 'bg-slate-200/50 opacity-80' : ''} ${colorCls}">
                                     <div>${cell.month}/${cell.day}</div>
-                                    <div class="text-[9px]">(${dayLabels[dIdx]})${!isCurrentMonth ? '·전달' : ''}</div>
+                                    <div class="text-[9px]">(${dayLabels[dIdx]})${!isCurrentMonth ? '·전' : ''}</div>
                                 </th>`;
                             }).join('')}
-                            <th class="py-2 px-2 text-center font-extrabold text-slate-800 bg-slate-200/70 border-r border-slate-200 min-w-[56px]">
+                            <th class="py-2 px-1.5 text-center font-extrabold text-slate-800 bg-slate-200/70 border-r border-slate-200 whitespace-nowrap">
                                 주간<br>총근무
                             </th>
-                            <th class="py-2 px-2 text-center font-extrabold text-sky-700 bg-sky-100/70 min-w-[54px]">
+                            <th class="py-2 px-1.5 text-center font-extrabold text-sky-700 bg-sky-100/70 whitespace-nowrap">
                                 주간<br>총OT
                             </th>
                         </tr>
@@ -1475,7 +1523,7 @@ function renderWeekDetailList(year, month, weeks, overUserMap) {
                 </table>
             </div>
         </div>
-        <div class="text-[11px] text-slate-400 px-1">💡 상단 1주차~${weeks.length}주차 버튼을 터치해 주간표를 전환하세요.</div>
+        <div class="text-[10px] sm:text-[11px] text-slate-400 px-1">💡 화면을 펼치면 한눈에 넓게 보이며, 접은 화면에서는 표를 좌우로 밀어 총근무·총OT를 볼 수 있습니다.</div>
     </div>`;
 }
 
@@ -1612,14 +1660,14 @@ function renderOtManagementTab() {
     const maxUserOt = Math.max(...userOtData.map(d => d.monthlyTotalOt), 1);
 
     return `
-    <div class="p-4 space-y-4">
+    <div class="p-2.5 sm:p-4 space-y-4 w-full max-w-full overflow-x-hidden">
         <div class="bg-gradient-to-br from-slate-900 via-indigo-950 to-slate-900 rounded-3xl p-4 text-white shadow-md space-y-3">
-            <div class="flex items-center justify-between">
+            <div class="flex items-center justify-between gap-2 flex-wrap">
                 <div>
                     <span class="text-[10px] font-bold uppercase px-2 py-0.5 rounded-md bg-sky-400/20 text-sky-300">
                         ${isAdmin ? '관리자 가배정 기준' : '공식 배포본 기준'}
                     </span>
-                    <h2 class="text-base font-bold mt-1">${year}년 ${month}월 인당 OT & 주 52시간 현황</h2>
+                    <h2 class="text-sm sm:text-base font-bold mt-1">${year}년 ${month}월 인당 OT & 주 52시간 현황</h2>
                 </div>
                 <div class="flex items-center gap-1 bg-white/10 p-1 rounded-xl">
                     <button onclick="changeMonth(-1)" class="w-7 h-7 rounded-lg hover:bg-white/10 flex items-center justify-center text-xs"><i class="fa-solid fa-chevron-left"></i></button>
@@ -1631,25 +1679,25 @@ function renderOtManagementTab() {
             <div class="grid grid-cols-3 gap-2 pt-1 text-center">
                 <div class="bg-white/5 rounded-2xl py-2">
                     <div class="text-[10px] text-slate-400">전 직원 월 총 OT</div>
-                    <div class="text-sm font-extrabold text-amber-300 mt-0.5">${totalTeamOt}시간</div>
+                    <div class="text-xs sm:text-sm font-extrabold text-amber-300 mt-0.5">${totalTeamOt}시간</div>
                 </div>
                 <div class="bg-white/5 rounded-2xl py-2">
                     <div class="text-[10px] text-slate-400">1인당 평균 OT</div>
-                    <div class="text-sm font-bold text-white mt-0.5">${round1(totalTeamOt / (db.users.length || 1))}시간</div>
+                    <div class="text-xs sm:text-sm font-bold text-white mt-0.5">${round1(totalTeamOt / (db.users.length || 1))}시간</div>
                 </div>
                 <div class="bg-white/5 rounded-2xl py-2">
                     <div class="text-[10px] text-slate-400">주 52h 이상자</div>
-                    <div class="text-sm font-extrabold ${userOtData.filter(d => d.hasAnyOver52).length > 0 ? 'text-rose-400' : 'text-emerald-300'} mt-0.5">${userOtData.filter(d => d.hasAnyOver52).length}명</div>
+                    <div class="text-xs sm:text-sm font-extrabold ${userOtData.filter(d => d.hasAnyOver52).length > 0 ? 'text-rose-400' : 'text-emerald-300'} mt-0.5">${userOtData.filter(d => d.hasAnyOver52).length}명</div>
                 </div>
             </div>
         </div>
 
         <div class="flex bg-slate-200/80 p-1 rounded-2xl">
             <button onclick="setOtSubTab('weekly')" class="flex-1 py-2 rounded-xl text-xs font-bold transition ${state.otViewSubTab === 'weekly' ? 'bg-white text-indigo-600 shadow-sm' : 'text-slate-600'}">
-                📅 주별 OT & 주 52시간 점검표
+                📅 주별 OT & 주 52h 점검표
             </button>
             <button onclick="setOtSubTab('monthly')" class="flex-1 py-2 rounded-xl text-xs font-bold transition ${state.otViewSubTab === 'monthly' ? 'bg-white text-indigo-600 shadow-sm' : 'text-slate-600'}">
-                📊 월별 인당 총 OT 상세분석
+                📊 월별 인당 총 OT 상세
             </button>
         </div>
 
@@ -1661,21 +1709,21 @@ function setOtSubTab(subTab) { state.otViewSubTab = subTab; renderApp(); }
 
 function renderWeeklyOtTable(year, month, weeks, userOtData) {
     return `
-    <div class="bg-white rounded-3xl p-4 border border-slate-200 shadow-sm space-y-3">
+    <div class="bg-white rounded-3xl p-3 sm:p-4 border border-slate-200 shadow-sm space-y-3 w-full overflow-hidden">
         <div>
             <h3 class="font-bold text-sm text-slate-800">주별 인당 OT 및 총 근로시간(52h) 현황</h3>
             <p class="text-[11px] text-slate-400">상단은 <b>OT 시간</b>, 하단 괄호는 <b>주간 7일 연속 총 근로시간(전달 포함)</b>입니다.</p>
         </div>
-        <div class="overflow-x-auto max-h-[60vh] -mx-2 px-2">
+        <div class="touch-scroll-x max-h-[60vh] w-full">
             <table class="w-full text-left border-collapse text-xs">
                 <thead class="sticky top-0 bg-slate-50 z-10">
-                    <tr class="border-b border-slate-200 text-[11px] text-slate-400">
-                        <th class="py-2.5 px-2 font-bold">직원명</th>
+                    <tr class="border-b border-slate-200 text-[10px] sm:text-[11px] text-slate-400">
+                        <th class="py-2.5 px-2 font-bold whitespace-nowrap">직원명</th>
                         ${weeks.map((w, idx) => {
                             const f = w[0], l = w[6];
-                            return `<th class="py-2.5 px-1 font-semibold text-center">${idx + 1}주<div class="text-[9px] font-normal text-slate-400">${f.month}/${f.day}~${l.month}/${l.day}</div></th>`;
+                            return `<th class="py-2.5 px-1 font-semibold text-center whitespace-nowrap">${idx + 1}주<div class="text-[9px] font-normal text-slate-400">${f.month}/${f.day}~${l.month}/${l.day}</div></th>`;
                         }).join('')}
-                        <th class="py-2.5 px-2 font-bold text-right text-indigo-600">월 총OT</th>
+                        <th class="py-2.5 px-2 font-bold text-right text-indigo-600 whitespace-nowrap">월 총OT</th>
                     </tr>
                 </thead>
                 <tbody class="divide-y divide-slate-100">
@@ -1683,10 +1731,10 @@ function renderWeeklyOtTable(year, month, weeks, userOtData) {
                     <tr class="${row.hasAnyOver52 ? 'bg-rose-50/60' : ''}">
                         <td class="py-3 px-2 font-bold text-slate-800 whitespace-nowrap">
                             <div>${row.user.name}</div>
-                            ${row.hasAnyOver52 ? `<span class="inline-block mt-0.5 text-[9px] font-extrabold px-1.5 py-0.2 rounded bg-rose-600 text-white">🚨52h초과</span>` : ''}
+                            ${row.hasAnyOver52 ? `<span class="inline-block mt-0.5 text-[9px] font-extrabold px-1 py-0.2 rounded bg-rose-600 text-white">🚨52h</span>` : ''}
                         </td>
                         ${row.weeklyStats.map(ws => `
-                        <td class="py-2.5 px-1 text-center">
+                        <td class="py-2.5 px-1 text-center whitespace-nowrap">
                             <div class="px-1 py-0.5 rounded-md font-bold ${ws.isOver52 ? 'bg-rose-600 text-white shadow-sm' : ws.ot > 0 ? 'bg-sky-50 text-sky-700' : 'text-slate-300'}">
                                 +${ws.ot}h
                             </div>
@@ -1716,17 +1764,17 @@ function renderMonthlyOtDetail(year, month, userOtData, maxUserOt) {
                 const pct = maxUserOt > 0 ? Math.round((d.monthlyTotalOt / maxUserOt) * 100) : 0;
                 return `
                 <div class="p-3 rounded-2xl ${d.hasAnyOver52 ? 'bg-rose-50 border border-rose-300' : 'bg-slate-50 border border-slate-100'} space-y-1.5">
-                    <div class="flex items-center justify-between">
+                    <div class="flex items-center justify-between flex-wrap gap-1">
                         <div class="flex items-center gap-1.5">
                             <span class="font-bold text-xs text-slate-800">${d.user.name} <span class="text-[11px] font-normal text-slate-400">(${d.user.role})</span></span>
-                            ${d.hasAnyOver52 ? `<span class="text-[10px] font-extrabold px-2 py-0.5 rounded-full bg-rose-600 text-white">🚨 주 52시간 이상 주간 있음</span>` : ''}
+                            ${d.hasAnyOver52 ? `<span class="text-[10px] font-extrabold px-2 py-0.5 rounded-full bg-rose-600 text-white">🚨 52h 이상 주간 있음</span>` : ''}
                         </div>
                         <span class="text-sm font-extrabold text-indigo-600">OT ${d.monthlyTotalOt}h <span class="text-[11px] font-normal text-slate-400">(${d.monthlyWorkDays}일)</span></span>
                     </div>
                     <div class="w-full h-3 bg-slate-200/70 rounded-full overflow-hidden">
                         <div class="h-full ${d.hasAnyOver52 ? 'bg-rose-600' : 'bg-gradient-to-r from-indigo-500 to-sky-500'} rounded-full" style="width: ${Math.max(pct, d.monthlyTotalOt > 0 ? 8 : 0)}%"></div>
                     </div>
-                    <div class="flex items-center justify-between text-[10px] text-slate-500 pt-0.5">
+                    <div class="flex items-center justify-between text-[10px] text-slate-500 pt-0.5 flex-wrap gap-1">
                         <span>평일 연장 OT: <b>${d.weekdayOtSum}h</b> · 주말/공휴일 OT: <b class="text-rose-600">${d.holidayOtSum}h</b></span>
                         <span>월 총 실근로: <b>${d.monthlyTotalWorkHours}h</b></span>
                     </div>
@@ -1777,7 +1825,7 @@ function openDayScheduleModal(dateStr) {
 
         let adminAddHtml = isAdmin ? `
             <div class="pt-2 flex gap-2">
-                <select id="add-worker-${s.id}" class="flex-1 border rounded-xl px-2 py-1.5 text-xs bg-white">
+                <select id="add-worker-${s.id}" class="flex-1 min-w-0 border rounded-xl px-2 py-1.5 text-xs bg-white">
                     <option value="">+ 근무자 배정 선택 (투입시 +${sWork}h)...</option>
                     ${db.users.map(u => {
                         if (assignedIds.includes(u.id)) return '';
@@ -1798,13 +1846,13 @@ function openDayScheduleModal(dateStr) {
                         return `<option value="${u.id}" ${disabledAttr}>${u.name} ${statusTag}</option>`;
                     }).join('')}
                 </select>
-                <button onclick="addWorkerToShift('${dateStr}', '${s.id}')" class="bg-slate-800 text-white text-xs font-bold px-3 rounded-xl">배정</button>
+                <button onclick="addWorkerToShift('${dateStr}', '${s.id}')" class="bg-slate-800 text-white text-xs font-bold px-3 rounded-xl shrink-0">배정</button>
             </div>
         ` : '';
 
         return `
         <div style="background:${c.bg}; border:1px solid ${c.border}" class="p-3.5 rounded-2xl space-y-2">
-            <div class="flex justify-between items-center">
+            <div class="flex justify-between items-center flex-wrap gap-1">
                 <div>
                     <span style="color:${c.text}" class="font-extrabold text-sm">${s.name}</span>
                     <span class="text-xs text-slate-600 ml-1">${s.time}</span>
@@ -1818,8 +1866,8 @@ function openDayScheduleModal(dateStr) {
     }).join('');
 
     let holidayControlHtml = isAdmin ? `
-        <div class="p-3 rounded-2xl ${isHol ? 'bg-rose-50 border border-rose-200' : 'bg-slate-100 border border-slate-200'} flex items-center justify-between">
-            <div>
+        <div class="p-3 rounded-2xl ${isHol ? 'bg-rose-50 border border-rose-200' : 'bg-slate-100 border border-slate-200'} flex items-center justify-between gap-2">
+            <div class="min-w-0">
                 <div class="text-xs font-bold ${isHol ? 'text-rose-700' : 'text-slate-700'}">
                     ${isHol ? '🔴 주말/공휴일 (전시간 OT 적용중)' : '⚪ 평일 정상 근무일'}
                 </div>
@@ -1833,13 +1881,13 @@ function openDayScheduleModal(dateStr) {
 
     const myUnavail = !isAdmin && isHol ? isUserHolidayUnavailable(state.currentUser.id, dateStr) : false;
     let workerHolidayQuickBtn = (!isAdmin && isHol) ? `
-        <div class="p-3 rounded-2xl bg-slate-100 border border-slate-200 flex items-center justify-between">
-            <div class="text-xs">
+        <div class="p-3 rounded-2xl bg-slate-100 border border-slate-200 flex items-center justify-between gap-2">
+            <div class="text-xs min-w-0">
                 <div class="font-bold text-slate-800">🚫 이 주말/공휴일에 근무가 불가능하신가요?</div>
                 <div class="text-[11px] text-slate-500">${myUnavail ? '현재 근무 불가로 신청되어 있습니다.' : '근무 불가 신청 시 관리자 주말 선정에서 제외됩니다.'}</div>
             </div>
             <button onclick="quickToggleMyHolidayUnavailable('${dateStr}')" class="px-3 py-2 rounded-xl text-xs font-bold ${myUnavail ? 'bg-slate-700 text-white' : 'bg-rose-600 text-white'} shrink-0">
-                ${myUnavail ? '불가 신청 취소' : '근무 불가 신청'}
+                ${myUnavail ? '불가 취소' : '근무불가 신청'}
             </button>
         </div>
     ` : '';
@@ -1973,7 +2021,7 @@ function confirmRunAutoSchedule() {
 
 /**
  * ==========================================
- * 8. 탭 3: 근무자 신청 화면 & 관리자 신청 확인창 (달력 일별뷰 + 사람별 현황 + 승인/반려 확정 잠금)
+ * 8. 탭 3: 근무자 신청 화면 & 관리자 신청 확인창
  * ==========================================
  */
 function renderWorkerRequestsTab() {
@@ -1982,7 +2030,6 @@ function renderWorkerRequestsTab() {
     const year = state.currentYear, month = state.currentMonth;
     const daysInMonth = getDaysInMonth(year, month);
 
-    // 기존 기록 모두 보존 (최신 신청순/날짜순 정렬)
     const myLeaves = db.leaveRequests.filter(r => r.userId === myId).sort((a,b)=>b.date.localeCompare(a.date));
     const myPrefs = db.shiftPreferences.filter(r => r.userId === myId).sort((a,b)=>b.date.localeCompare(a.date));
     const myUnavails = (db.holidayUnavailables || []).filter(r => r.userId === myId).sort((a,b)=>b.date.localeCompare(a.date));
@@ -1999,48 +2046,48 @@ function renderWorkerRequestsTab() {
     }
 
     let unavailListHtml = myUnavails.map(item => `
-        <div class="p-3 rounded-2xl bg-rose-50/60 border border-rose-200 flex justify-between items-center">
-            <div>
+        <div class="p-3 rounded-2xl bg-rose-50/60 border border-rose-200 flex justify-between items-center gap-2">
+            <div class="min-w-0">
                 <span class="font-bold text-xs text-rose-800">${item.date} (${getDayOfWeekName(item.date)})</span>
                 <span class="text-[10px] font-bold bg-rose-600 text-white px-2 py-0.5 rounded-md ml-1">주말·휴일 근무불가</span>
-                <p class="text-[11px] text-slate-600 mt-0.5">사유: ${item.reason}</p>
+                <p class="text-[11px] text-slate-600 mt-0.5 truncate">사유: ${item.reason}</p>
             </div>
-            <button onclick="cancelHolidayUnavailable('${item.id}')" class="text-xs font-bold text-rose-600 px-2 py-1">취소</button>
+            <button onclick="cancelHolidayUnavailable('${item.id}')" class="text-xs font-bold text-rose-600 px-2 py-1 shrink-0">취소</button>
         </div>
     `).join('') || '<p class="text-xs text-slate-400">등록된 주말/공휴일 근무 불가 내역이 없습니다.</p>';
 
     let leavesHtml = myLeaves.map(r => `
-        <div class="p-3 rounded-2xl border ${r.status !== 'pending' ? 'bg-slate-50' : 'bg-white'} flex justify-between items-center">
-            <div>
-                <div class="flex items-center gap-1.5">
+        <div class="p-3 rounded-2xl border ${r.status !== 'pending' ? 'bg-slate-50' : 'bg-white'} flex justify-between items-center gap-2">
+            <div class="min-w-0">
+                <div class="flex items-center gap-1.5 flex-wrap">
                     <span class="font-bold text-xs">${r.date} (${getDayOfWeekName(r.date)})</span>
                     <span class="text-[10px] bg-rose-100 text-rose-700 px-2 py-0.5 rounded-md font-bold">${r.type}</span>
                     ${renderStatusBadge(r.status)}
                 </div>
-                <p class="text-[11px] text-slate-500 mt-1">사유: ${r.reason || '-'} ${r.decidedAt ? `<span class="text-[10px] text-slate-400">· 처리: ${r.decidedAt}</span>` : ''}</p>
+                <p class="text-[11px] text-slate-500 mt-1 truncate">사유: ${r.reason || '-'} ${r.decidedAt ? `<span class="text-[10px] text-slate-400">· 처리: ${r.decidedAt}</span>` : ''}</p>
             </div>
-            ${r.status==='pending'?`<button onclick="cancelWorkerRequest('leave', '${r.id}')" class="text-xs font-bold text-rose-500 px-2 py-1">취소</button>`:'<span class="text-[10px] text-slate-400 font-semibold">🔒확정됨</span>'}
+            ${r.status==='pending'?`<button onclick="cancelWorkerRequest('leave', '${r.id}')" class="text-xs font-bold text-rose-500 px-2 py-1 shrink-0">취소</button>`:'<span class="text-[10px] text-slate-400 font-semibold shrink-0">🔒확정됨</span>'}
         </div>
     `).join('') || '<p class="text-xs text-slate-400">신청 내역 없음</p>';
 
     let prefsHtml = myPrefs.map(sp => {
         const s = getShiftById(sp.shiftId);
         return `
-        <div class="p-3 rounded-2xl border ${sp.status !== 'pending' ? 'bg-slate-50' : 'bg-white'} flex justify-between items-center">
-            <div>
-                <div class="flex items-center gap-1.5">
+        <div class="p-3 rounded-2xl border ${sp.status !== 'pending' ? 'bg-slate-50' : 'bg-white'} flex justify-between items-center gap-2">
+            <div class="min-w-0">
+                <div class="flex items-center gap-1.5 flex-wrap">
                     <span class="font-bold text-xs">${sp.date} (${getDayOfWeekName(sp.date)})</span>
                     <span class="text-[10px] bg-indigo-100 text-indigo-700 px-2 py-0.5 rounded-md font-bold">${s ? `${s.name}` : '시프트'} (${sp.priority})</span>
                     ${renderStatusBadge(sp.status)}
                 </div>
-                <p class="text-[11px] text-slate-500 mt-1">메모: ${sp.note || '-'} ${sp.decidedAt ? `<span class="text-[10px] text-slate-400">· 처리: ${sp.decidedAt}</span>` : ''}</p>
+                <p class="text-[11px] text-slate-500 mt-1 truncate">메모: ${sp.note || '-'} ${sp.decidedAt ? `<span class="text-[10px] text-slate-400">· 처리: ${sp.decidedAt}</span>` : ''}</p>
             </div>
-            ${sp.status==='pending'?`<button onclick="cancelWorkerRequest('pref', '${sp.id}')" class="text-xs font-bold text-rose-500 px-2 py-1">취소</button>`:'<span class="text-[10px] text-slate-400 font-semibold">🔒확정됨</span>'}
+            ${sp.status==='pending'?`<button onclick="cancelWorkerRequest('pref', '${sp.id}')" class="text-xs font-bold text-rose-500 px-2 py-1 shrink-0">취소</button>`:'<span class="text-[10px] text-slate-400 font-semibold shrink-0">🔒확정됨</span>'}
         </div>`;
     }).join('') || '<p class="text-xs text-slate-400">신청 내역 없음</p>';
 
     return `
-    <div class="p-4 space-y-5">
+    <div class="p-2.5 sm:p-4 space-y-5 w-full max-w-full overflow-x-hidden">
         <div class="bg-indigo-50 border border-indigo-200 rounded-2xl p-3 text-xs text-indigo-900">
             💡 <b>안내</b>: 승인 또는 반려로 결정된 신청 건은 확정되어 변경되지 않습니다. 변경이 필요할 경우 위 신청 폼에서 <b>다시 신청</b>해 주세요. (기존 기록도 모두 보존됩니다)
         </div>
@@ -2129,19 +2176,17 @@ function cancelHolidayUnavailable(id) {
 }
 
 function renderStatusBadge(status) {
-    if (status === 'approved') return `<span class="text-[10px] font-bold px-2 py-0.5 rounded-full bg-emerald-100 text-emerald-700">승인확정</span>`;
-    if (status === 'rejected') return `<span class="text-[10px] font-bold px-2 py-0.5 rounded-full bg-slate-200 text-slate-600">반려확정</span>`;
-    return `<span class="text-[10px] font-bold px-2 py-0.5 rounded-full bg-amber-100 text-amber-700">대기중</span>`;
+    if (status === 'approved') return `<span class="text-[10px] font-bold px-2 py-0.5 rounded-full bg-emerald-100 text-emerald-700 shrink-0">승인확정</span>`;
+    if (status === 'rejected') return `<span class="text-[10px] font-bold px-2 py-0.5 rounded-full bg-slate-200 text-slate-600 shrink-0">반려확정</span>`;
+    return `<span class="text-[10px] font-bold px-2 py-0.5 rounded-full bg-amber-100 text-amber-700 shrink-0">대기중</span>`;
 }
 
-// [핵심 요구사항 2 & 3] 재신청 시 기존의 승인/반려된 과거 기록을 지우지 않고 그대로 보존하며, 대기중인 중복 건만 막음!
 function submitWorkerLeaveRequest() {
     const d = document.getElementById('worker-leave-date').value;
     const t = document.getElementById('worker-leave-type').value;
     const r = document.getElementById('worker-leave-reason').value.trim();
     if (!d) return showToast('날짜를 선택해주세요.', 'warning');
 
-    // 현재 '대기중(pending)'이거나 이미 '승인됨(approved)'인 동일 날짜 건이 있으면 안내 (반려된 건이 있을 때는 재신청 허용 및 기존 기록 보존!)
     const activeSameDate = db.leaveRequests.find(lr => lr.userId === state.currentUser.id && lr.date === d && (lr.status === 'pending' || lr.status === 'approved'));
     if (activeSameDate) {
         return showToast(`해당 날짜에 이미 ${activeSameDate.status === 'approved' ? '승인 확정된' : '대기중인'} 휴가 신청이 있습니다.`, 'warning');
@@ -2161,7 +2206,6 @@ function submitWorkerLeaveRequest() {
     showToast('휴가 신청이 등록되었습니다.', 'success');
 }
 
-// [핵심 요구사항 2 & 3] 개인 시프트 신청도 기존 승인/반려 기록을 삭제하지 않고 새 신청 이력으로 추가!
 function submitWorkerShiftPref() {
     const d = document.getElementById('worker-pref-date').value;
     const s = document.getElementById('worker-pref-shift').value;
@@ -2169,7 +2213,6 @@ function submitWorkerShiftPref() {
     const n = document.getElementById('worker-pref-note').value.trim();
     if (!d || !s) return showToast('날짜와 시프트를 선택해주세요.', 'warning');
 
-    // 아직 '대기중(pending)'인 동일 날짜 신청 건이 있을 때만 대기 건을 교체하고, 이미 승인/반려된 과거 기록은 절대 지우지 않고 보존!
     db.shiftPreferences = db.shiftPreferences.filter(sp => !(sp.userId === state.currentUser.id && sp.date === d && sp.status === 'pending'));
 
     db.shiftPreferences.push({
@@ -2201,30 +2244,21 @@ function cancelWorkerRequest(kind, id) {
     renderApp();
 }
 
-/**
- * ==========================================
- * [핵심 요구사항 2, 3, 4] 관리자 스케줄 신청 확인창
- * - 승인/반려 한 번 결정 시 잠금 처리 (재신청 전까지 변경 불가)
- * - 3가지 뷰 제공: 1) 📋 전체 목록(기록보존) / 2) 📅 달력(일별) 보기 / 3) 👤 사람별 신청현황
- * ==========================================
- */
 function renderAdminRequestsTab() {
     const pendingLeavesCount = db.leaveRequests.filter(l => l.status === 'pending').length;
     const pendingPrefsCount = db.shiftPreferences.filter(p => p.status === 'pending').length;
     const pendingCount = pendingLeavesCount + pendingPrefsCount;
 
     return `
-    <div class="p-4 space-y-4">
-        <!-- 상단 요약 및 대기건 일괄 승인 배너 -->
-        <div class="bg-white rounded-3xl p-4 border shadow-sm flex justify-between items-center">
-            <div>
+    <div class="p-2.5 sm:p-4 space-y-4 w-full max-w-full overflow-x-hidden">
+        <div class="bg-white rounded-3xl p-4 border shadow-sm flex justify-between items-center gap-2 flex-wrap">
+            <div class="min-w-0">
                 <h2 class="font-bold text-sm text-slate-800">스케줄 신청 통합 확인 센터</h2>
-                <p class="text-[11px] text-slate-500 mt-0.5">미결정 대기 요청 <b class="text-rose-600">${pendingCount}건</b> · 결정 시 기록 영구보존 및 잠금</p>
+                <p class="text-[11px] text-slate-500 mt-0.5">미결정 대기 <b class="text-rose-600">${pendingCount}건</b> · 결정 시 기록 보존 및 잠금</p>
             </div>
-            ${pendingCount > 0 ? `<button onclick="approveAllPendingRequests()" class="bg-indigo-600 text-white text-xs font-bold px-3.5 py-2 rounded-xl shadow-sm shrink-0">대기건 일괄승인</button>` : '<span class="text-xs font-bold text-emerald-600 bg-emerald-50 px-3 py-1.5 rounded-xl">모두 처리됨</span>'}
+            ${pendingCount > 0 ? `<button onclick="approveAllPendingRequests()" class="bg-indigo-600 text-white text-xs font-bold px-3.5 py-2 rounded-xl shadow-sm shrink-0">대기건 일괄승인</button>` : '<span class="text-xs font-bold text-emerald-600 bg-emerald-50 px-3 py-1.5 rounded-xl shrink-0">모두 처리됨</span>'}
         </div>
 
-        <!-- 3가지 뷰 전환 탭 (전체 목록 / 달력 일별 보기 / 사람별 신청현황) -->
         <div class="grid grid-cols-3 gap-1.5 bg-slate-200/80 p-1 rounded-2xl">
             <button onclick="setReqAdminViewMode('list')" class="py-2 rounded-xl text-xs font-bold transition ${state.reqAdminViewMode === 'list' ? 'bg-white text-indigo-600 shadow-sm' : 'text-slate-600'}">
                 📋 전체목록
@@ -2237,7 +2271,6 @@ function renderAdminRequestsTab() {
             </button>
         </div>
 
-        <!-- 선택된 뷰 렌더링 -->
         ${state.reqAdminViewMode === 'list' ? renderAdminReqListView() : (state.reqAdminViewMode === 'calendar' ? renderAdminReqCalendarView() : renderAdminReqPersonView())}
     </div>`;
 }
@@ -2247,7 +2280,6 @@ function setReqAdminViewMode(mode) {
     renderApp();
 }
 
-// 공통 개별 신청 아이템 카드 렌더링 (대기중일 때만 승인/반려 버튼 노출, 결정 완료 시 🔒확정 잠금 표시!)
 function renderSingleRequestActionButtons(kind, item) {
     if (item.status === 'pending') {
         return `
@@ -2259,12 +2291,11 @@ function renderSingleRequestActionButtons(kind, item) {
     return `
     <div class="text-right shrink-0">
         <span class="inline-flex items-center gap-1 text-[10px] font-bold px-2 py-1 rounded-lg bg-slate-200/80 text-slate-600">
-            <i class="fa-solid fa-lock text-[9px]"></i> 결정확정 (변경불가)
+            <i class="fa-solid fa-lock text-[9px]"></i> 결정확정
         </span>
     </div>`;
 }
 
-// 1) [📋 전체 목록 뷰] (기존 기록 모두 보존)
 function renderAdminReqListView() {
     const leaves = [...db.leaveRequests].sort((a, b) => {
         if (a.status === 'pending' && b.status !== 'pending') return -1;
@@ -2282,17 +2313,17 @@ function renderAdminReqListView() {
         const u = getUserById(r.userId);
         return `
         <div class="p-3 rounded-2xl border ${r.status==='pending'?'bg-amber-50/70 border-amber-200':'bg-slate-50 border-slate-200'}">
-            <div class="flex justify-between items-center">
-                <div class="flex gap-1.5 items-center flex-wrap">
+            <div class="flex justify-between items-center gap-2">
+                <div class="flex gap-1.5 items-center flex-wrap min-w-0">
                     <span class="font-bold text-xs text-slate-800">${u?.name || '직원'}</span>
                     <span class="text-xs font-bold text-rose-600">${r.date} (${getDayOfWeekName(r.date)})</span>
                     <span class="text-[10px] font-bold px-2 py-0.5 rounded bg-rose-100 text-rose-700">${r.type}</span>
                 </div>
                 ${renderStatusBadge(r.status)}
             </div>
-            <div class="flex justify-between items-center mt-2 pt-2 border-t border-black/5">
-                <div class="text-[11px] text-slate-600">
-                    <div>사유: ${r.reason}</div>
+            <div class="flex justify-between items-center gap-2 mt-2 pt-2 border-t border-black/5">
+                <div class="text-[11px] text-slate-600 min-w-0">
+                    <div class="truncate">사유: ${r.reason}</div>
                     <div class="text-[9px] text-slate-400">신청: ${r.createdAt || '-'} ${r.decidedAt ? `· 확정: ${r.decidedAt}` : ''}</div>
                 </div>
                 ${renderSingleRequestActionButtons('leave', r)}
@@ -2304,17 +2335,17 @@ function renderAdminReqListView() {
         const u = getUserById(sp.userId), s = getShiftById(sp.shiftId);
         return `
         <div class="p-3 rounded-2xl border ${sp.status==='pending'?'bg-amber-50/70 border-amber-200':'bg-slate-50 border-slate-200'}">
-            <div class="flex justify-between items-center">
-                <div class="flex gap-1.5 items-center flex-wrap">
+            <div class="flex justify-between items-center gap-2">
+                <div class="flex gap-1.5 items-center flex-wrap min-w-0">
                     <span class="font-bold text-xs text-slate-800">${u?.name || '직원'}</span>
                     <span class="text-xs font-bold text-indigo-600">${sp.date} (${getDayOfWeekName(sp.date)})</span>
                     <span class="text-[10px] font-bold px-2 py-0.5 rounded bg-indigo-100 text-indigo-700">${s?.name || '시프트'} (${sp.priority})</span>
                 </div>
                 ${renderStatusBadge(sp.status)}
             </div>
-            <div class="flex justify-between items-center mt-2 pt-2 border-t border-black/5">
-                <div class="text-[11px] text-slate-600">
-                    <div>메모: ${sp.note || '-'}</div>
+            <div class="flex justify-between items-center gap-2 mt-2 pt-2 border-t border-black/5">
+                <div class="text-[11px] text-slate-600 min-w-0">
+                    <div class="truncate">메모: ${sp.note || '-'}</div>
                     <div class="text-[9px] text-slate-400">신청: ${sp.createdAt || '-'} ${sp.decidedAt ? `· 확정: ${sp.decidedAt}` : ''}</div>
                 </div>
                 ${renderSingleRequestActionButtons('pref', sp)}
@@ -2325,13 +2356,13 @@ function renderAdminReqListView() {
     let unavailHtml = unavails.map(item => {
         const u = getUserById(item.userId);
         return `
-        <div class="p-3 rounded-2xl bg-rose-50/50 border border-rose-200 flex items-center justify-between">
-            <div>
+        <div class="p-3 rounded-2xl bg-rose-50/50 border border-rose-200 flex items-center justify-between gap-2">
+            <div class="min-w-0">
                 <span class="font-bold text-xs text-slate-800">${u?.name || '직원'}</span>
                 <span class="text-xs font-extrabold text-rose-600 ml-1">${item.date} (${getDayOfWeekName(item.date)})</span>
-                <p class="text-[11px] text-slate-600 mt-0.5">사유: ${item.reason}</p>
+                <p class="text-[11px] text-slate-600 mt-0.5 truncate">사유: ${item.reason}</p>
             </div>
-            <span class="text-[10px] font-bold px-2 py-0.5 rounded bg-rose-100 text-rose-700">휴일불가</span>
+            <span class="text-[10px] font-bold px-2 py-0.5 rounded bg-rose-100 text-rose-700 shrink-0">휴일불가</span>
         </div>`;
     }).join('') || '<p class="text-xs text-slate-400 text-center py-3">주말/공휴일 근무 불가 신청이 없습니다.</p>';
 
@@ -2352,14 +2383,13 @@ function renderAdminReqListView() {
     </div>`;
 }
 
-// 2) [📅 달력(일별) 확인 뷰] (달력에서 일별로 신청 내역 확인 및 기존 기록 모두 표시)
 function renderAdminReqCalendarView() {
     const year = state.currentYear, month = state.currentMonth;
     const weeks = getMonthCalendarWeeks(year, month);
     const selDate = state.reqAdminSelectedDate || formatDate(year, month, 1);
 
     let weeksHtml = weeks.map(week => `
-        <div class="grid grid-cols-7 divide-x">
+        <div class="grid grid-cols-7 divide-x w-full">
             ${week.map((cell, dIdx) => {
                 const { dateStr, day, isCurrentMonth } = cell;
                 const isSelected = (dateStr === selDate);
@@ -2370,37 +2400,35 @@ function renderAdminReqCalendarView() {
 
                 let badges = '';
                 if (dayLeaves.length > 0) {
-                    badges += `<div class="mb-0.5 px-1 py-0.2 rounded bg-rose-100 text-rose-700 text-[9px] font-bold truncate">🌴휴가 ${dayLeaves.length}건</div>`;
+                    badges += `<div class="mb-0.5 px-0.5 py-0.2 rounded bg-rose-100 text-rose-700 text-[8px] sm:text-[9px] font-bold truncate">🌴휴가 ${dayLeaves.length}</div>`;
                 }
                 if (dayPrefs.length > 0) {
-                    badges += `<div class="mb-0.5 px-1 py-0.2 rounded bg-indigo-100 text-indigo-700 text-[9px] font-bold truncate">⏰시프트 ${dayPrefs.length}건</div>`;
+                    badges += `<div class="mb-0.5 px-0.5 py-0.2 rounded bg-indigo-100 text-indigo-700 text-[8px] sm:text-[9px] font-bold truncate">⏰시프트 ${dayPrefs.length}</div>`;
                 }
                 if (dayUnavails.length > 0) {
-                    badges += `<div class="mb-0.5 px-1 py-0.2 rounded bg-slate-200 text-slate-700 text-[9px] font-bold truncate">🚫불가 ${dayUnavails.length}건</div>`;
+                    badges += `<div class="mb-0.5 px-0.5 py-0.2 rounded bg-slate-200 text-slate-700 text-[8px] sm:text-[9px] font-bold truncate">🚫불가 ${dayUnavails.length}</div>`;
                 }
 
                 return `
-                <div onclick="selectAdminReqCalendarDate('${dateStr}')" class="min-h-[74px] p-1 flex flex-col cursor-pointer transition ${isSelected ? 'bg-indigo-50 ring-2 ring-inset ring-indigo-600' : (!isCurrentMonth ? 'bg-slate-50/60 opacity-60' : 'hover:bg-slate-50')}">
+                <div onclick="selectAdminReqCalendarDate('${dateStr}')" class="min-h-[70px] sm:min-h-[82px] min-w-0 p-0.5 sm:p-1 flex flex-col cursor-pointer transition ${isSelected ? 'bg-indigo-50 ring-2 ring-inset ring-indigo-600' : (!isCurrentMonth ? 'bg-slate-50/60 opacity-60' : 'hover:bg-slate-50')}">
                     <div class="flex items-center justify-between">
-                        <span class="text-[11px] font-bold ${dIdx===0?'text-rose-500':dIdx===6?'text-blue-500':'text-slate-700'}">${!isCurrentMonth ? `${cell.month}/${day}` : day}</span>
-                        ${hasPending ? `<span class="w-2 h-2 rounded-full bg-amber-500" title="승인 대기중 있음"></span>` : ''}
+                        <span class="text-[10px] sm:text-[11px] font-bold ${dIdx===0?'text-rose-500':dIdx===6?'text-blue-500':'text-slate-700'}">${!isCurrentMonth ? `${cell.month}/${day}` : day}</span>
+                        ${hasPending ? `<span class="w-2 h-2 rounded-full bg-amber-500 shrink-0" title="승인 대기중 있음"></span>` : ''}
                     </div>
-                    <div class="mt-1 flex-1 flex flex-col">${badges}</div>
+                    <div class="mt-1 flex-1 flex flex-col min-w-0 overflow-hidden">${badges}</div>
                 </div>`;
             }).join('')}
         </div>
     `).join('');
 
-    // 선택된 날짜의 모든 신청 기록 (과거 반려/승인 기록 포함)
     const selLeaves = db.leaveRequests.filter(r => r.date === selDate);
     const selPrefs = db.shiftPreferences.filter(r => r.date === selDate);
     const selUnavails = (db.holidayUnavailables || []).filter(r => r.date === selDate);
 
     return `
-    <div class="space-y-4">
-        <!-- 월 이동 및 달력 그리드 -->
-        <div class="bg-white rounded-3xl border shadow-sm overflow-hidden">
-            <div class="p-3 bg-slate-50 border-b flex items-center justify-between">
+    <div class="space-y-4 w-full">
+        <div class="bg-white rounded-3xl border shadow-sm overflow-hidden w-full">
+            <div class="p-3 bg-slate-50 border-b flex items-center justify-between gap-2 flex-wrap">
                 <div class="flex items-center gap-1">
                     <button onclick="changeMonth(-1)" class="w-7 h-7 rounded-lg bg-white border flex items-center justify-center text-xs"><i class="fa-solid fa-chevron-left"></i></button>
                     <span class="font-bold text-xs px-2">${year}년 ${month}월 일별 신청 달력</span>
@@ -2408,13 +2436,12 @@ function renderAdminReqCalendarView() {
                 </div>
                 <span class="text-[10px] text-slate-500">🟠 주황점은 미결 대기건</span>
             </div>
-            <div class="grid grid-cols-7 border-b bg-slate-100/70 text-center py-1.5">
+            <div class="grid grid-cols-7 border-b bg-slate-100/70 text-center py-1.5 w-full">
                 ${['일','월','화','수','목','금','토'].map((d,i) => `<div class="text-[10px] font-bold ${i===0?'text-rose-500':i===6?'text-blue-500':'text-slate-500'}">${d}</div>`).join('')}
             </div>
-            <div class="divide-y">${weeksHtml}</div>
+            <div class="divide-y w-full">${weeksHtml}</div>
         </div>
 
-        <!-- 선택한 날짜의 상세 신청 기록 리스트 -->
         <div class="bg-white rounded-3xl p-4 border-2 border-indigo-200 shadow-sm space-y-3">
             <div class="flex items-center justify-between border-b pb-2">
                 <h3 class="font-extrabold text-sm text-indigo-900">📌 ${selDate} (${getDayOfWeekName(selDate)}) 신청 기록 전체</h3>
@@ -2427,16 +2454,16 @@ function renderAdminReqCalendarView() {
                 const u = getUserById(sp.userId), s = getShiftById(sp.shiftId);
                 return `
                 <div class="p-3 rounded-2xl border ${sp.status==='pending'?'bg-amber-50 border-amber-200':'bg-slate-50'} space-y-2">
-                    <div class="flex justify-between items-center">
-                        <div>
+                    <div class="flex justify-between items-center gap-2">
+                        <div class="min-w-0">
                             <span class="text-[10px] font-bold px-1.5 py-0.5 rounded bg-indigo-100 text-indigo-700 mr-1">희망시프트</span>
                             <span class="font-bold text-xs">${u?.name} (${u?.role})</span>
                             <span class="text-xs font-extrabold text-indigo-600 ml-1">→ ${s?.name} (${sp.priority})</span>
                         </div>
                         ${renderStatusBadge(sp.status)}
                     </div>
-                    <div class="flex justify-between items-center text-[11px] text-slate-600">
-                        <span>메모: ${sp.note || '-'}</span>
+                    <div class="flex justify-between items-center gap-2 text-[11px] text-slate-600">
+                        <span class="truncate">메모: ${sp.note || '-'}</span>
                         ${renderSingleRequestActionButtons('pref', sp)}
                     </div>
                 </div>`;
@@ -2446,15 +2473,15 @@ function renderAdminReqCalendarView() {
                 const u = getUserById(r.userId);
                 return `
                 <div class="p-3 rounded-2xl border ${r.status==='pending'?'bg-amber-50 border-amber-200':'bg-slate-50'} space-y-2">
-                    <div class="flex justify-between items-center">
-                        <div>
+                    <div class="flex justify-between items-center gap-2">
+                        <div class="min-w-0">
                             <span class="text-[10px] font-bold px-1.5 py-0.5 rounded bg-rose-100 text-rose-700 mr-1">휴가(${r.type})</span>
                             <span class="font-bold text-xs">${u?.name} (${u?.role})</span>
                         </div>
                         ${renderStatusBadge(r.status)}
                     </div>
-                    <div class="flex justify-between items-center text-[11px] text-slate-600">
-                        <span>사유: ${r.reason || '-'}</span>
+                    <div class="flex justify-between items-center gap-2 text-[11px] text-slate-600">
+                        <span class="truncate">사유: ${r.reason || '-'}</span>
                         ${renderSingleRequestActionButtons('leave', r)}
                     </div>
                 </div>`;
@@ -2480,7 +2507,6 @@ function selectAdminReqCalendarDate(dateStr) {
     renderApp();
 }
 
-// 3) [👤 사람별 신청현황 뷰] (직원별 신청 통계 및 개인별 전체 신청 히스토리 열람)
 function renderAdminReqPersonView() {
     const q = (state.reqAdminPersonSearch || '').trim().toLowerCase();
     let filteredUsers = db.users;
@@ -2499,42 +2525,39 @@ function renderAdminReqPersonView() {
         const isSel = (u.id === selectedUid);
 
         return `
-        <button type="button" onclick="selectAdminReqPerson('${u.id}')" class="p-2.5 rounded-2xl border text-left transition flex items-center justify-between ${isSel ? 'bg-indigo-600 text-white border-indigo-600 shadow-md' : 'bg-white text-slate-800 border-slate-200 hover:bg-slate-50'}">
-            <div class="flex items-center gap-2 overflow-hidden">
+        <button type="button" onclick="selectAdminReqPerson('${u.id}')" class="p-2.5 rounded-2xl border text-left transition flex items-center justify-between min-w-0 ${isSel ? 'bg-indigo-600 text-white border-indigo-600 shadow-md' : 'bg-white text-slate-800 border-slate-200 hover:bg-slate-50'}">
+            <div class="flex items-center gap-2 overflow-hidden min-w-0">
                 <span class="w-7 h-7 rounded-lg ${isSel ? 'bg-white/20 text-white' : `${u.avatarColor} text-white`} font-bold text-xs flex items-center justify-center shrink-0">${u.name.charAt(0)}</span>
-                <div class="truncate">
+                <div class="truncate min-w-0">
                     <div class="font-bold text-xs truncate">${u.name} <span class="text-[10px] font-normal ${isSel ? 'text-indigo-200' : 'text-slate-400'}">(${u.role})</span></div>
-                    <div class="text-[10px] ${isSel ? 'text-indigo-100' : 'text-slate-500'}">휴가 ${uLeaves.length} · 시프트 ${uPrefs.length} · 불가 ${uUnavails.length}</div>
+                    <div class="text-[10px] truncate ${isSel ? 'text-indigo-100' : 'text-slate-500'}">휴가 ${uLeaves.length} · 시프트 ${uPrefs.length} · 불가 ${uUnavails.length}</div>
                 </div>
             </div>
-            ${pendingCnt > 0 ? `<span class="px-1.5 py-0.5 rounded-full bg-rose-500 text-white text-[9px] font-extrabold shrink-0">대기 ${pendingCnt}</span>` : ''}
+            ${pendingCnt > 0 ? `<span class="px-1.5 py-0.5 rounded-full bg-rose-500 text-white text-[9px] font-extrabold shrink-0 ml-1">대기 ${pendingCnt}</span>` : ''}
         </button>`;
     }).join('');
 
-    // 선택된 직원의 모든 과거 및 현재 신청 내역
     const personLeaves = db.leaveRequests.filter(r => r.userId === selectedUid).sort((a,b)=>b.date.localeCompare(a.date));
     const personPrefs = db.shiftPreferences.filter(r => r.userId === selectedUid).sort((a,b)=>b.date.localeCompare(a.date));
     const personUnavails = (db.holidayUnavailables || []).filter(r => r.userId === selectedUid).sort((a,b)=>b.date.localeCompare(a.date));
 
     return `
     <div class="space-y-4">
-        <!-- 직원 검색 및 선택 그리드 -->
         <div class="bg-white rounded-3xl p-4 border shadow-sm space-y-3">
             <div class="flex items-center gap-2 bg-slate-100 rounded-xl px-3 py-2">
                 <i class="fa-solid fa-magnifying-glass text-slate-400 text-xs"></i>
-                <input type="text" value="${state.reqAdminPersonSearch}" oninput="updateAdminReqPersonSearch(this.value)" placeholder="직원 이름 검색 (총 ${db.users.length}명)..." class="flex-1 bg-transparent text-xs focus:outline-none">
+                <input type="text" value="${state.reqAdminPersonSearch}" oninput="updateAdminReqPersonSearch(this.value)" placeholder="직원 이름 검색 (총 ${db.users.length}명)..." class="flex-1 min-w-0 bg-transparent text-xs focus:outline-none">
             </div>
-            <div class="grid grid-cols-2 gap-1.5 max-h-48 overflow-y-auto pr-1">
+            <div class="grid grid-cols-2 sm:grid-cols-3 gap-1.5 max-h-48 overflow-y-auto pr-1">
                 ${userSummaryCards}
             </div>
         </div>
 
-        <!-- 선택된 직원의 전체 신청 현황 상세 -->
         ${selectedUser ? `
         <div class="bg-white rounded-3xl p-4 border-2 border-indigo-200 shadow-sm space-y-4">
             <div class="flex items-center justify-between border-b pb-2.5">
                 <div class="flex items-center gap-2">
-                    <span class="w-8 h-8 rounded-xl ${selectedUser.avatarColor} text-white font-bold text-xs flex items-center justify-center">${selectedUser.name.charAt(0)}</span>
+                    <span class="w-8 h-8 rounded-xl ${selectedUser.avatarColor} text-white font-bold text-xs flex items-center justify-center shrink-0">${selectedUser.name.charAt(0)}</span>
                     <div>
                         <h3 class="font-extrabold text-sm text-slate-800">${selectedUser.name} (${selectedUser.role}) 신청 현황</h3>
                         <p class="text-[10px] text-slate-400">총 휴가 ${personLeaves.length}건 · 희망시프트 ${personPrefs.length}건 · 휴일불가 ${personUnavails.length}건</p>
@@ -2548,12 +2571,12 @@ function renderAdminReqPersonView() {
                     const s = getShiftById(sp.shiftId);
                     return `
                     <div class="p-3 rounded-2xl border ${sp.status==='pending'?'bg-amber-50 border-amber-200':'bg-slate-50'} space-y-1.5">
-                        <div class="flex justify-between items-center">
+                        <div class="flex justify-between items-center gap-2">
                             <span class="font-bold text-xs">${sp.date} (${getDayOfWeekName(sp.date)}) · <b class="text-indigo-600">${s?.name || '시프트'} (${sp.priority})</b></span>
                             ${renderStatusBadge(sp.status)}
                         </div>
-                        <div class="flex justify-between items-center text-[11px] text-slate-600">
-                            <span>메모: ${sp.note || '-'}</span>
+                        <div class="flex justify-between items-center gap-2 text-[11px] text-slate-600">
+                            <span class="truncate">메모: ${sp.note || '-'}</span>
                             ${renderSingleRequestActionButtons('pref', sp)}
                         </div>
                     </div>`;
@@ -2564,12 +2587,12 @@ function renderAdminReqPersonView() {
                 <div class="text-xs font-bold text-rose-600">🌴 휴가 신청 기록 (${personLeaves.length}건)</div>
                 ${personLeaves.length === 0 ? '<p class="text-xs text-slate-400">신청 기록 없음</p>' : personLeaves.map(r => `
                     <div class="p-3 rounded-2xl border ${r.status==='pending'?'bg-amber-50 border-amber-200':'bg-slate-50'} space-y-1.5">
-                        <div class="flex justify-between items-center">
+                        <div class="flex justify-between items-center gap-2">
                             <span class="font-bold text-xs">${r.date} (${getDayOfWeekName(r.date)}) · <b class="text-rose-600">${r.type}</b></span>
                             ${renderStatusBadge(r.status)}
                         </div>
-                        <div class="flex justify-between items-center text-[11px] text-slate-600">
-                            <span>사유: ${r.reason || '-'}</span>
+                        <div class="flex justify-between items-center gap-2 text-[11px] text-slate-600">
+                            <span class="truncate">사유: ${r.reason || '-'}</span>
                             ${renderSingleRequestActionButtons('leave', r)}
                         </div>
                     </div>
@@ -2604,7 +2627,6 @@ function updateAdminReqPersonSearch(val) {
     }
 }
 
-// [핵심 요구사항 2] 한 번 승인(approved) 또는 반려(rejected)로 결정된 기록은 다시 변경할 수 없도록 잠금!
 function updateRequestStatus(kind, id, newStatus) {
     if (kind === 'leave') {
         const item = db.leaveRequests.find(r => r.id === id);
@@ -2695,21 +2717,21 @@ function renderFairnessStatsTab() {
             </td>
             <td class="py-2.5 px-1.5 text-center font-bold text-indigo-600 whitespace-nowrap">${m.totalWorkDays}일<div class="text-[9px] font-normal text-slate-400">(${m.totalWorkHours}h)</div></td>
             <td class="py-2.5 px-1.5 text-center font-extrabold text-sky-600 whitespace-nowrap">${m.totalOt}h</td>
-            ${db.shifts.map(s => `<td class="py-2.5 px-1 text-center text-slate-600">${m.shiftMap[s.id]}</td>`).join('')}
+            ${db.shifts.map(s => `<td class="py-2.5 px-1 text-center text-slate-600 whitespace-nowrap">${m.shiftMap[s.id]}</td>`).join('')}
         </tr>
     `).join('');
 
     return `
-    <div class="p-4 space-y-4">
-        <div class="bg-white rounded-3xl p-4 border shadow-sm overflow-x-auto max-h-[70vh]">
+    <div class="p-2.5 sm:p-4 space-y-4 w-full max-w-full overflow-x-hidden">
+        <div class="bg-white rounded-3xl p-3 sm:p-4 border shadow-sm touch-scroll-x max-h-[70vh] w-full">
             <h3 class="font-bold text-sm text-slate-800 mb-3">${year}년 ${month}월 근무일수 & OT·52h 통계 (총 ${db.users.length}명)</h3>
             <table class="w-full text-left text-xs border-collapse">
                 <thead class="sticky top-0 bg-white z-10">
                     <tr class="border-b text-slate-400 text-[11px]">
-                        <th class="py-2 px-2">이름</th>
-                        <th class="py-2 px-1.5 text-center">총근무</th>
-                        <th class="py-2 px-1.5 text-center text-sky-600">총OT</th>
-                        ${db.shifts.map(s => `<th class="py-2 px-1 text-center">${s.name}</th>`).join('')}
+                        <th class="py-2 px-2 whitespace-nowrap">이름</th>
+                        <th class="py-2 px-1.5 text-center whitespace-nowrap">총근무</th>
+                        <th class="py-2 px-1.5 text-center text-sky-600 whitespace-nowrap">총OT</th>
+                        ${db.shifts.map(s => `<th class="py-2 px-1 text-center whitespace-nowrap">${s.name}</th>`).join('')}
                     </tr>
                 </thead>
                 <tbody class="divide-y">${trHtml}</tbody>
@@ -2729,15 +2751,15 @@ function renderSettingsTab() {
         const calc = calculateWorkAndOtFromTimeRange(s.time, false);
         const wOt = getShiftOtHoursForDate(s, null);
         return `
-        <div class="p-3.5 border rounded-2xl flex justify-between items-center bg-slate-50/70">
-            <div class="flex gap-3 items-center">
-                <span style="background:${c.bg}; color:${c.text}; border:1px solid ${c.border}" class="px-2.5 py-1 rounded-xl font-bold text-xs">${s.name}</span>
-                <div>
-                    <div class="text-xs font-bold text-slate-800">${s.time} <span class="text-[11px] font-normal text-slate-500">(필수 ${s.reqCount}명)</span></div>
-                    <div class="text-[10px] text-slate-500">평일 OT: <b>${wOt}h</b> · 주말/공휴일 OT: <b class="text-rose-600">${calc.holidayOt}h(전시간)</b></div>
+        <div class="p-3.5 border rounded-2xl flex justify-between items-center gap-2 bg-slate-50/70">
+            <div class="flex gap-3 items-center min-w-0">
+                <span style="background:${c.bg}; color:${c.text}; border:1px solid ${c.border}" class="px-2.5 py-1 rounded-xl font-bold text-xs shrink-0">${s.name}</span>
+                <div class="min-w-0">
+                    <div class="text-xs font-bold text-slate-800 truncate">${s.time} <span class="text-[11px] font-normal text-slate-500">(필수 ${s.reqCount}명)</span></div>
+                    <div class="text-[10px] text-slate-500 truncate">평일 OT: <b>${wOt}h</b> · 주말/공휴일 OT: <b class="text-rose-600">${calc.holidayOt}h(전시간)</b></div>
                 </div>
             </div>
-            <div class="flex gap-1">
+            <div class="flex gap-1 shrink-0">
                 <button onclick="openShiftEditorModal('${s.id}')" class="w-8 h-8 bg-white border rounded-xl text-xs"><i class="fa-solid fa-pen"></i></button>
                 <button onclick="deleteShift('${s.id}')" class="w-8 h-8 bg-rose-50 text-rose-600 border border-rose-100 rounded-xl text-xs"><i class="fa-solid fa-trash"></i></button>
             </div>
@@ -2747,17 +2769,17 @@ function renderSettingsTab() {
     let usersHtml = db.users.map(u => {
         const fixedS = u.fixedShiftId ? getShiftById(u.fixedShiftId) : null;
         return `
-        <div class="p-3 border rounded-2xl flex justify-between items-center bg-slate-50/70">
-            <div class="flex gap-3 items-center">
-                <span class="w-8 h-8 rounded-xl ${u.avatarColor} text-white flex justify-center items-center text-xs font-bold">${u.name.charAt(0)}</span>
-                <div>
-                    <div class="text-xs font-bold">${u.name} <span class="text-indigo-600 font-normal">(${u.role})</span></div>
-                    <div class="text-[10px] ${fixedS ? 'text-pink-600 font-bold' : 'text-slate-400'}">
+        <div class="p-3 border rounded-2xl flex justify-between items-center gap-2 bg-slate-50/70">
+            <div class="flex gap-3 items-center min-w-0">
+                <span class="w-8 h-8 rounded-xl ${u.avatarColor} text-white flex justify-center items-center text-xs font-bold shrink-0">${u.name.charAt(0)}</span>
+                <div class="min-w-0">
+                    <div class="text-xs font-bold truncate">${u.name} <span class="text-indigo-600 font-normal">(${u.role})</span></div>
+                    <div class="text-[10px] truncate ${fixedS ? 'text-pink-600 font-bold' : 'text-slate-400'}">
                         ${fixedS ? `📌 고정 근무시간: ${fixedS.name} (${fixedS.time})` : `전 시프트 순환 가능 · PIN ${u.pin}`}
                     </div>
                 </div>
             </div>
-            <div class="flex gap-1">
+            <div class="flex gap-1 shrink-0">
                 <button onclick="openWorkerEditorModal('${u.id}')" class="w-8 h-8 bg-white border rounded-xl text-xs"><i class="fa-solid fa-pen"></i></button>
                 <button onclick="deleteWorker('${u.id}')" class="w-8 h-8 bg-rose-50 text-rose-600 border border-rose-100 rounded-xl text-xs"><i class="fa-solid fa-trash"></i></button>
             </div>
@@ -2765,12 +2787,12 @@ function renderSettingsTab() {
     }).join('');
 
     return `
-    <div class="p-4 space-y-5">
+    <div class="p-2.5 sm:p-4 space-y-5 w-full max-w-full overflow-x-hidden">
         <div class="bg-white rounded-3xl p-4 border shadow-sm space-y-3">
-            <div class="flex justify-between items-center">
-                <div>
+            <div class="flex justify-between items-center gap-2">
+                <div class="min-w-0">
                     <h3 class="font-bold text-sm">⏰ 근무시간(시프트) & 10가지 색상 설정</h3>
-                    <p class="text-[11px] text-slate-400">평일 연장 OT 및 휴일 전시간 OT가 자동 계산됩니다.</p>
+                    <p class="text-[11px] text-slate-400 truncate">평일 연장 OT 및 휴일 전시간 OT가 자동 계산됩니다.</p>
                 </div>
                 <button onclick="openShiftEditorModal()" class="bg-indigo-600 text-white text-xs font-bold px-3 py-2 rounded-xl shrink-0">+ 시프트 추가</button>
             </div>
@@ -2778,10 +2800,10 @@ function renderSettingsTab() {
         </div>
 
         <div class="bg-white rounded-3xl p-4 border shadow-sm space-y-3">
-            <div class="flex justify-between items-center">
-                <div>
+            <div class="flex justify-between items-center gap-2">
+                <div class="min-w-0">
                     <h3 class="font-bold text-sm">👥 직원 및 파트타임 관리 (총 ${db.users.length}명)</h3>
-                    <p class="text-[11px] text-slate-400">파트타임은 정해진 시프트로만 근무하도록 고정할 수 있습니다.</p>
+                    <p class="text-[11px] text-slate-400 truncate">파트타임은 정해진 시프트로만 근무하도록 고정할 수 있습니다.</p>
                 </div>
                 <button onclick="openWorkerEditorModal()" class="bg-emerald-600 text-white text-xs font-bold px-3 py-2 rounded-xl shrink-0">+ 직원 추가</button>
             </div>
@@ -2796,9 +2818,9 @@ function openShiftEditorModal(shiftId = null) {
     const currentOt = t.otHours !== undefined ? t.otHours : initCalc.weekdayOt;
 
     let colorSwatchesHtml = COLOR_PRESETS.map(c => `
-        <button type="button" onclick="selectShiftColorPreset('${c.id}')" id="swatch-${c.id}" style="background:${c.bg}; color:${c.text}; border:2px solid ${t.colorId === c.id ? c.text : c.border}" class="py-1.5 px-2 rounded-xl text-[10px] font-bold flex items-center justify-center gap-1 transition">
-            <span style="background:${c.bar}" class="w-2 h-2 rounded-full"></span>
-            <span>${c.name.split(' ')[1]}</span>
+        <button type="button" onclick="selectShiftColorPreset('${c.id}')" id="swatch-${c.id}" style="background:${c.bg}; color:${c.text}; border:2px solid ${t.colorId === c.id ? c.text : c.border}" class="py-1.5 px-1 rounded-xl text-[10px] font-bold flex items-center justify-center gap-1 transition">
+            <span style="background:${c.bar}" class="w-2 h-2 rounded-full shrink-0"></span>
+            <span class="truncate">${c.name.split(' ')[1]}</span>
         </button>
     `).join('');
 
@@ -2820,14 +2842,14 @@ function openShiftEditorModal(shiftId = null) {
             </div>
 
             <div class="bg-sky-50 border border-sky-200 rounded-2xl p-3 space-y-2">
-                <div class="flex items-center justify-between">
+                <div class="flex items-center justify-between flex-wrap gap-1">
                     <span class="text-xs font-bold text-sky-900">⏱️ 평일 인정 OT (휴일엔 ${initCalc.holidayOt}h 전시간 OT)</span>
                     <button type="button" onclick="onShiftTimeInputChanged()" class="text-[10px] font-bold bg-white border border-sky-300 text-sky-700 px-2 py-0.5 rounded-lg">자동재계산</button>
                 </div>
                 <div class="flex items-center gap-2">
                     <input id="modal-shift-ot" type="number" step="0.5" min="0" max="15" value="${currentOt}" class="w-24 bg-white border border-sky-300 rounded-xl px-3 py-2 text-sm font-extrabold text-sky-700 text-center">
                     <span class="text-xs font-bold text-slate-700">시간</span>
-                    <span id="modal-ot-calc-desc" class="text-[11px] text-slate-500 ml-auto">
+                    <span id="modal-ot-calc-desc" class="text-[11px] text-slate-500 ml-auto truncate">
                         실근무 ${initCalc.netWorkHours}h / 휴게 ${initCalc.breakHours}h
                     </span>
                 </div>
